@@ -3,12 +3,11 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-// TOdO: investigate error handling for when we get an error with a 200 status code. eg. when
-// unauthenticated. We want in this case to NOT decode json to  our struct. Or to decode to a
-// different struct handling the known errors?
-//
+// TODO: create a custom error type so we can distinguish json return types
+//       - then use that error type to test for auth failure
 // TODO: debugger (explore, see if will be useful) [ a debugger is a bit like a REPL for a compiled language]
 // TODO: https://crates.io/crates/secrecy for the token (wrapper type to avoid exposing during logging etc)
+// TODO: compile questions and ask on Rust forum
 
 // curl --header "X-Client-Token: [token]" "https://checkvist.com/checklists.json"
 //     .get("https://checkvist.com/checklists.json")
@@ -52,9 +51,10 @@ impl ChecklistClient {
     }
 
     // TAG error_handling:  how best to handle?
-    // boxing errors anonymously here.
-    // a library, custom error type, what?
-    // String here is a stopgap (forcing use of .unwrap)
+    // Options
+    // - custom error type and let the caller decide
+    // - box dyn the error just as an indicator that somethign has failed
+    // - take a closure to be called in or_else on the event of failure
     pub async fn get_list(&self, list_id: i32) -> Result<Checklist, reqwest::Error> {
         // pub async fn get_list(&self, list_id: i32) -> Result<Checklist, Box<dyn std::error::Error>> {
         let url = self
@@ -68,10 +68,23 @@ impl ChecklistClient {
             .header("X-Client-Token", &self.api_token)
             .send()
             .await?
-            .json()
+            // why is the turbofish needed here? Just annotating list to be
+            // a serde_json::Value doesn't work
+            .json::<serde_json::Value>()
             .await?;
 
-        Ok(list)
+        let temp = list.as_object().unwrap();
+        if temp.contains_key("message") {
+            Ok(Checklist {
+                id: 1,
+                name: "failure".to_string(),
+                task_count: 0,
+                updated_at: "never".to_string(),
+            })
+        } else {
+            let checklist = serde_json::from_value(list).unwrap();
+            Ok(checklist)
+        }
     }
 
     // and/or a method to get the checklist and all embedded tasks
@@ -97,6 +110,7 @@ impl ChecklistClient {
 async fn main() {
     let client = ChecklistClient::new(
         "https://checkvist.com/".into(),
+        // "bad_token".into(),
         "HRpvPJqF4uvwVR8jQ3mkiqlwCm7Y6n".into(),
     );
     let list = client.get_list(774394).await.unwrap();
@@ -107,6 +121,7 @@ async fn main() {
 }
 
 // TODO: move tests when split to lib
+// TODO: refactor tests
 #[cfg(test)]
 mod tests {
     use super::*;
