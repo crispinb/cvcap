@@ -131,4 +131,44 @@ impl ChecklistClient {
 
         Ok(tasks)
     }
+
+    pub async fn add_task(
+        &self,
+        list_id: i32,
+        task: &TempTaskForAdding,
+    ) -> Result<Task, reqwest::Error> {
+
+        let url = self
+            .base_url
+            .join(&format!("/checklists/{}/tasks.json", list_id))
+            .unwrap();
+        println!("about to add task {:?}, via url {}", task, url);
+        let returned_task: Task = self
+            .client
+            .post(url)
+            .header("X-Client-token", &self.api_token)
+            .header("Content-Type", "application/json")
+            .json(task)
+            .send()
+            .await?
+            .json()
+            .await?;
+            // .text()
+            // .await
+            // .unwrap();
+            
+        // println!("got: {:?}", returned_task);
+
+        // Ok(Task {id: 1, content: "arked mate".into()})
+        Ok(returned_task)
+    }
+}
+
+// TODO: decide!
+// not sure yet whether Task should be modelled with optional fields,
+// or differnet structs or in and output?
+#[derive(Debug, Serialize, Clone)]
+pub struct TempTaskForAdding {
+    pub content: String,
+    pub position: u16,
 }
