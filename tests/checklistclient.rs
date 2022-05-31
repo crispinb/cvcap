@@ -4,9 +4,11 @@
 //     - if so do we mock all for that or do the Mocks per test function?
 //     - if we do have one for all tests, how do we access a 'global'?
 #[cfg(test)]
+#[allow(unused)]
 mod tests {
     use checkvistcli::{Checklist, ChecklistClient, CheckvistError, Task, TempTaskForAdding};
     use serde_json::to_string;
+    use std::collections::HashMap;
     use tokio_test::{assert_err, assert_ok};
     use wiremock::matchers::{body_partial_json, header, method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -22,6 +24,12 @@ mod tests {
     //         .await;
 
     // }
+
+    #[test]
+    #[should_panic]
+    fn client_creation_should_panic_with_invalid_url() {
+        let _client = ChecklistClient::new("".into(), "token".into());
+    }
 
     #[tokio::test]
     async fn test_get_list() {
@@ -76,39 +84,26 @@ mod tests {
         assert_eq!(tasks.len(), 1);
     }
 
-    // TODO: fix test
-    // #[tokio::test]
-    // async fn test_authentication_failure() {
-    //     let mock_server = MockServer::start().await;
-    //     let error = HashMap::from([("message", "bad token")]);
-    //     Mock::given(method("GET"))
-    //         .and(header("X-Client-Token", "token"))
-    //         .and(path("/checklists/1.json"))
-    //         .respond_with(ResponseTemplate::new(200).set_body_json(error))
-    //         .expect(1)
-    //         .mount(&mock_server)
-    //         .await;
+    #[tokio::test]
+    async fn test_authentication_failure() {
+        let mock_server = MockServer::start().await;
+        let error = HashMap::from([("message", "bad token")]);
+        Mock::given(method("GET"))
+            .and(header("X-Client-Token", "token"))
+            .and(path("/checklists/1.json"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(error))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
-    //     let client = ChecklistClient::new(mock_server.uri(), "token".to_string());
-    //     let result = client.get_list(1).await;
-    //     // check that it's an error:
-    //     assert_err!(result);
-    //     // now 'an error of the right type':
-    //     let tester = CheckvistError::AuthTokenFailure(checkvistcli::Error { message: "auth token invalid".to_string()});
-    //     if let Err(error) = result {
-    //         this is all fucking fucked.
-    //     assert_eq!(tester, error);
-    //     }
-    //     // the returneed error to one we construct to be the same discriminant,
-    //     // lookup how to get teh inner error so we can compare
-    //     // the returneed error to one we construct to be the same discriminant,
-    //     // with the same inner error
-    //     /// std::mem::discriminant butk
-    //     // assert_eq(std::mem::discriminant(Err( result) ), tester);
-    //     // let fark = Err(result);
-    //     // TODO: how to assert that our error is of this type? This won't work:
-    //     // assert_eq!(CheckvistError::AuthTokenFailure(()), Err(result));
-    // }
+        let client = ChecklistClient::new(mock_server.uri(), "token".to_string());
+        let result = client.get_list(1).await;
+        // check that it's an error:
+        assert_err!(result);
+        
+        // TODO: how to check that the error is of the right type?
+        // assert_eq!(CheckvistError::AuthTokenFailure(()), Err(result));
+    }
 
     #[tokio::test]
     async fn basic_add_task() {
@@ -123,21 +118,13 @@ mod tests {
             content: "some text".into(),
         };
 
-        // - Request #1
-        // 	POST http://localhost/checklists/1/tasks.json
-        // accept: */*
-        // host: 127.0.0.1:40317
-        // x-client-token: token
-        // content-length: 36
-        // content-type: application/json
-        // {"content":"some text","position":1}
         Mock::given(method("POST"))
             // TODO: lookup the streamlined header arg
             .and(header("X-Client-Token", "token"))
             .and(header("Content-Type", "application/json"))
             .and(path("/checklists/1/tasks.json"))
             .and(body_partial_json(added_task.clone()))
-            // TODO: add expectation that the task is sent
+            // TODO: add expectation that the task is sent?
             .respond_with(ResponseTemplate::new(200).set_body_json(returned_task))
             .expect(1)
             .mount(&mock_server)
@@ -145,6 +132,6 @@ mod tests {
 
         let client = ChecklistClient::new(mock_server.uri(), "token".to_string());
         // TODO: check return value
-        client.add_task(1, &added_task).await.unwrap();
+        let task = client.add_task(1, &added_task).await.unwrap();
     }
 }

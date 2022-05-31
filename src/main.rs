@@ -4,6 +4,11 @@ use std::env;
 use checkvistcli::{ChecklistClient, Task, TempTaskForAdding};
 use clap::{Arg, Command};
 
+//STructural search and replace! (supposedly)
+// Place the cursor on the line below to see the assist 💡.
+// foo($a, $b) ==>> ($a).foo
+// task ==>> flask
+
 // TODO: ge&t this from build system in some way?
 static VERSION: &str = "0.1";
 
@@ -45,8 +50,11 @@ let banner =r"  ____ _               _           _     _             _ _
         content: task_content.into(),
         position: 1,
     };
-    let added_task = client.add_task(774394, &task).await.unwrap();
+    if let Ok( added_task ) = client.add_task(774394, &task).await {
     println!("added task {:?}", added_task);
+    } else {
+        println!("fark! that didn't work");
+    }
     // let client = ChecklistClient::new(
     //     "https://checkvist.com/".into(),
     //     "bad_token".into(),

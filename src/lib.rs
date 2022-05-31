@@ -3,23 +3,19 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-// TODO: compile questions and ask on Rust forum
-// TODO: https://crates.io/crates/secrecy for the token (wrapper type to avoid exposing during logging etc)
-// TODO: investigate thiserror & anyhow
-//
 // curl --header "X-Client-Token: [token]" "https://checkvist.com/checklists.json"
 //     .get("https://checkvist.com/checklists.json")
 // current token: HRpvPJqF4uvwVR8jQ3mkiqlwCm7Y6n
 // if token is bad or expired, receive: `{"message":"Unauthenticated: no valid authentication data in request"}`
 // json return:
 //Object({"archived": Bool(false), "created_at": String("2020/09/13 21:45:52 +0000"), "id": Number(774394), "item_count": Number(16), "markdown?": Bool(true), "name": String("devtest"), "options": Number(3), "percent_completed": Number(0.0), "public": Bool(false), "read_only": Bool(false), "related_task_ids": Null, "tags": Object({"to_review": Bool(false)}), "tags_as_text": String("to_review"), "task_completed": Number(0), "task_count": Number(16), "updated_at": String("2022/04/26 18:41:15 +1000"), "user_count": Number(1), "user_updated_at": String("2022/04/26 18:41:15 +1000")})
-// Serialize is onl6y here for tests - is there a way around this?
+// Serialize is only here for tests - is there a way around this?
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Checklist {
     pub id: i32,
     pub name: String,
-    // TODO: can we automatically convert to a date type of some sort?
+    // TODO: automatically convert to a date type of some sort
     pub updated_at: String,
     pub task_count: u16,
 }
@@ -28,24 +24,6 @@ pub struct Checklist {
 pub struct Task {
     pub content: String,
     pub id: i32,
-    // TODO: model the rest
-}
-
-#[derive(Debug, Clone)]
-pub struct Error {
-    pub message: String,
-    // TODO: find out why this gets a type error, or find some other way to
-    //       propagate the specifics
-    // TODO: make this optional?
-    // pub innerError: Box<dyn std::error::Error + Send + Sync + 'static>
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(_: reqwest::Error) -> Self {
-        Error {
-            message: "fark!".to_string(),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -63,6 +41,26 @@ impl From<reqwest::Error> for CheckvistError {
     }
 }
 
+// This is CheckvistError's internal type
+// Problems:
+// - seems a bit verbose. Is there something we can do inline in CheckVistError instead?
+// - we really want variants - eg. a message for errors we generate, but an inner error
+//   for (eg.) reqwest::error
+#[derive(Debug, Clone)]
+pub struct Error {
+    pub message: String,
+}
+
+// TODO: build this error properly
+impl From<reqwest::Error> for Error {
+    fn from(_: reqwest::Error) -> Self {
+        Error {
+            message: "TODO".to_string(),
+        }
+    }
+}
+
+
 #[derive(Debug)]
 pub struct ChecklistClient {
     client: Client,
@@ -74,7 +72,6 @@ impl ChecklistClient {
     pub fn new(base_url: String, api_token: String) -> Self {
         Self {
             client: Client::new(),
-            // TAG error_handling: how  best to hande a ParseError here
             base_url: Url::parse(&base_url).unwrap(),
             api_token,
         }
@@ -106,6 +103,7 @@ impl ChecklistClient {
                     message: "auth token invalid".to_string(),
                 }))
             } else {
+                // TODO: remove unwrap
                 let checklist = serde_json::from_value(list).unwrap();
                 Ok(checklist)
             }
@@ -137,7 +135,6 @@ impl ChecklistClient {
         list_id: i32,
         task: &TempTaskForAdding,
     ) -> Result<Task, reqwest::Error> {
-
         let url = self
             .base_url
             .join(&format!("/checklists/{}/tasks.json", list_id))
@@ -153,10 +150,10 @@ impl ChecklistClient {
             .await?
             .json()
             .await?;
-            // .text()
-            // .await
-            // .unwrap();
-            
+        // .text()
+        // .await
+        // .unwrap();
+
         // println!("got: {:?}", returned_task);
 
         // Ok(Task {id: 1, content: "arked mate".into()})
@@ -164,7 +161,7 @@ impl ChecklistClient {
     }
 }
 
-// TODO: decide!
+// TODO: decide on how to model internal VS external task
 // not sure yet whether Task should be modelled with optional fields,
 // or differnet structs or in and output?
 #[derive(Debug, Serialize, Clone)]
