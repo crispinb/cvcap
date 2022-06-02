@@ -1,7 +1,6 @@
-#![allow(unused_imports)]
+#![allow(unused_imports, unused_variables)]
 use std::env;
 
-use checkvistcli::{ChecklistClient, Task, TempTaskForAdding};
 use clap::{Arg, Command};
 
 //STructural search and replace! (supposedly)
@@ -12,8 +11,7 @@ use clap::{Arg, Command};
 // TODO: ge&t this from build system in some way?
 static VERSION: &str = "0.1";
 
-#[tokio::main]
-async fn main() {
+fn main() {
     // TODO: conditional use of canned data with wiremock somehow?
 let banner =r"  ____ _               _           _     _             _ _ 
 / ___| |__   ___  ___| | ____   _(_)___| |_       ___| (_)
@@ -42,19 +40,19 @@ let banner =r"  ____ _               _           _     _             _ _
     let token = env::var(TOKEN_KEY).expect(&need_token_msg);
 
     // hardcoded attempt
-    let client = ChecklistClient::new(
-        "https://checkvist.com/".into(),
-        token
-    );
-    let task = TempTaskForAdding {
-        content: task_content.into(),
-        position: 1,
-    };
-    if let Ok( added_task ) = client.add_task(774394, &task).await {
-    println!("added task {:?}", added_task);
-    } else {
-        println!("fark! that didn't work");
-    }
+    // let client = ChecklistClient::new(
+    //     "https://checkvist.com/".into(),
+    //     token
+    // );
+    // let task = TempTaskForAdding {
+    //     content: task_content.into(),
+    //     position: 1,
+    // };
+    // if let Ok( added_task ) = client.add_task(774394, &task).await {
+    // println!("added task {:?}", added_task);
+    // } else {
+    //     println!("fark! that didn't work");
+    // }
     // let client = ChecklistClient::new(
     //     "https://checkvist.com/".into(),
     //     "bad_token".into(),

@@ -33,8 +33,16 @@ If it does, move to crispinb
 - how to create a daemon process similar to docker cli's, that doesn't need a service installation?
 
 
+# Log
+## experiment-ureq branch
+Replacing reqwest with ureq, & wiremock with mockito. Removes all tokio deps for build speed. This will either
+run on the cmdline (when the client has to wait for a response anyway), or as a daemon/server doing continuous sync with an sqlite db. All we're likely to need is threads.
+
+
 # Resources
 * [Checkvist API](https://checkvist.com/auth/api)
+* https://serde.rs/
 * https://www.lpalmieri.com/posts/how-to-write-a-rest-client-in-rust-with-reqwest-and-wiremock/
   Looks like a good ref for making the client roughly prod-ready
 * https://rust-cli.github.io/book/index.html
+* egui backend? https://github.com/emilk/egui
