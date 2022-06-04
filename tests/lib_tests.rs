@@ -1,5 +1,4 @@
-use checkvistcli::ChecklistClient;
-// TODO: move tests when split to lib
+use checkvistcli::CheckvistClient;
 // TODO: refactor tests
 //    - do we use one MockServer for all test methods?
 //     - if so do we mock all for that or do the Mocks per test function?
@@ -12,11 +11,11 @@ use std::collections::HashMap;
 #[test]
 #[should_panic]
 fn client_creation_should_panic_with_invalid_url() {
-    let _client = ChecklistClient::new("".into(), "token".into());
+    let _client = CheckvistClient::new("".into(), "token".into());
 }
 
 #[test]
-fn test_authentication_failure() {
+fn authentication_failure() {
     let unauth_error = "Unauthenticated: no valid authentication data in request";
     let error = HashMap::from([("message", unauth_error)]);
     let error_json = serde_json::to_string(&error).unwrap();
@@ -25,7 +24,7 @@ fn test_authentication_failure() {
         .with_body(error_json)
         .create();
 
-    let client = ChecklistClient::new(mockito::server_url(), "token".to_string());
+    let client = CheckvistClient::new(mockito::server_url(), "token".to_string());
     let result = client.get_list(1).unwrap_err();
 
     mock.assert();
@@ -38,7 +37,7 @@ fn test_authentication_failure() {
 }
 
 #[test]
-fn test_get_valid_list() {
+fn get_valid_list() {
     let expected_list = Checklist {
         id: 1,
         name: "list1".to_string(),
@@ -52,30 +51,31 @@ fn test_get_valid_list() {
         .with_body(response_json)
         .create();
 
-    let client = ChecklistClient::new(mockito::server_url(), "token".to_string());
+    let client = CheckvistClient::new(mockito::server_url(), "token".into());
     let result = client.get_list(1).unwrap();
 
     mock.assert();
     assert_eq!(expected_list, result);
 }
 
-async fn test_test_list_tasks() {
-    // let mock_server = MockServer::start().await;
-    // let task = Task {
-    //     id: 1,
-    //     content: "content".to_string(),
-    // };
-    // Mock::given(method("GET"))
-    //     .and(header("X-Client-Token", "token"))
-    //     .and(path("/checklists/1/tasks.json"))
-    //     .respond_with(ResponseTemplate::new(200).set_body_json(vec![task]))
-    //     .expect(1)
-    //     .mount(&mock_server)
-    //     .await;
+#[test]
+fn get_tasks() {
+    let task = Task {
+        id: 1,
+        content: "content".to_string(),
+    };
+    let task_json = serde_json::to_string(&task).unwrap();
 
-    // let client = ChecklistClient::new(mock_server.uri(), "token".to_string());
-    // let tasks = client.get_all_tasks(1).await.unwrap();
-    // assert_eq!(tasks.len(), 1);
+    let mock = mock("GET", "/checklists/1/tasks.json")
+        .match_header("X-Client-Token", "token")
+        .with_body(task_json)
+        .create();
+
+    let client = CheckvistClient::new(mockito::server_url(), "token".into());
+    let tasks = client.get_tasks(1).unwrap();
+    
+    mock.assert();
+    // TODO: now check task
 }
 
 async fn basic_add_task() {

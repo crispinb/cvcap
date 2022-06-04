@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+use std::vec;
+
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -18,6 +20,7 @@ pub struct Checklist {
     pub updated_at: String,
     pub task_count: u16,
 }
+
 // TODO: model the rest (task contents)
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Task {
@@ -56,35 +59,30 @@ impl From<std::io::Error> for CheckvistError {
     }
 }
 
+// TODO: decide if this is needed (if so would hold a ref to a ureq Agent)
 #[derive(Debug)]
-struct Client {}
-impl Client {
-    pub fn new() -> Client {
-        Client {}
+struct HttpClient {}
+impl HttpClient {
+    pub fn new() -> HttpClient {
+        HttpClient {}
     }
 }
 
 #[derive(Debug)]
-pub struct ChecklistClient {
-    client: Client,
+pub struct CheckvistClient {
+    client: HttpClient,
     base_url: Url,
     api_token: String,
 }
 
-impl ChecklistClient {
+impl CheckvistClient {
     pub fn new(base_url: String, api_token: String) -> Self {
         Self {
-            client: Client::new(),
-            base_url: Url::parse(&base_url).unwrap(),
+            client: HttpClient::new(),
+            base_url: Url::parse(&base_url).expect("Bad base url supplied"),
             api_token,
         }
     }
-
-    pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
-        let url = self
-            .base_url
-            .join(&format!("/checklists/{}.json", list_id))
-            .expect("Error creating url (should never happen)");
 
         #[derive(Deserialize)]
         #[serde(untagged)]
@@ -92,6 +90,10 @@ impl ChecklistClient {
             ValidList(Checklist),
             JsonError { message: String },
         }
+    pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
+        let list_id_segment = list_id.to_string();
+        let url = self.build_endpoint(vec!["/checklists/", &list_id_segment, ".json"]);
+
         let checklist: ApiResponse = ureq::get(url.as_str())
             .set("X-Client-token", &self.api_token)
             .call()?
@@ -102,5 +104,37 @@ impl ChecklistClient {
             // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string
             ApiResponse::JsonError { message } => Err(CheckvistError::UnknownError { message }),
         }
+    }
+
+    fn check_json_error_response(response: ApiResponse) -> Result<Checklist, CheckvistError> {
+        match response {
+            ApiResponse::ValidList(returned_list) => Ok(returned_list),
+            // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string
+            ApiResponse::JsonError { message } => Err(CheckvistError::UnknownError { message }),
+        }
+
+    }
+
+    pub fn get_tasks(&self, list_id: u32) -> Result<Task, CheckvistError> {
+        let list_id_segment = list_id.to_string();
+        let url = self.build_endpoint(vec!["/checklists/", &list_id_segment, "/tasks.json"]) ;
+
+        // TODO: possibly extract ureq Agent (read up on purpose)
+        let task = ureq::get(url.as_str())
+            .set("X-Client-token", &self.api_token)
+            .call()?
+            .into_json()?;
+
+        // TODO: deal with & test errors
+        // TODO: can I extract the json error logic somehow? eg after into_json, call a method here that returns an ApiResponse::JsonError? Then I don't need the match everywhere.
+        Ok(task)
+
+        // Err(CheckvistError::AuthTokenFailure { message: "(fark)".to_string()})
+    }
+
+    fn build_endpoint(&self, segments: Vec<&str>) -> Url {
+        self.base_url
+            .join(&segments.concat())
+            .expect("Error building endpoing (shouldn't happen as base_url is known good")
     }
 }
