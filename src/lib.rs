@@ -68,6 +68,13 @@ impl HttpClient {
     }
 }
 
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum ApiResponse {
+    ValidList(Checklist),
+    JsonError { message: String },
+}
+
 #[derive(Debug)]
 pub struct CheckvistClient {
     client: HttpClient,
@@ -84,52 +91,43 @@ impl CheckvistClient {
         }
     }
 
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum ApiResponse {
-            ValidList(Checklist),
-            JsonError { message: String },
-        }
     pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
         let list_id_segment = list_id.to_string();
         let url = self.build_endpoint(vec!["/checklists/", &list_id_segment, ".json"]);
 
-        let checklist: ApiResponse = ureq::get(url.as_str())
+        let response: ApiResponse = ureq::get(url.as_str())
             .set("X-Client-token", &self.api_token)
             .call()?
             .into_json()?;
 
-        match checklist {
-            ApiResponse::ValidList(returned_list) => Ok(returned_list),
-            // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string
-            ApiResponse::JsonError { message } => Err(CheckvistError::UnknownError { message }),
-        }
+            // TODO: or make this a method on ApiResponse?
+            self.check_json_error_response(response)
     }
 
-    fn check_json_error_response(response: ApiResponse) -> Result<Checklist, CheckvistError> {
-        match response {
-            ApiResponse::ValidList(returned_list) => Ok(returned_list),
-            // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string
-            ApiResponse::JsonError { message } => Err(CheckvistError::UnknownError { message }),
-        }
-
-    }
-
-    pub fn get_tasks(&self, list_id: u32) -> Result<Task, CheckvistError> {
+    pub fn get_tasks(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
         let list_id_segment = list_id.to_string();
-        let url = self.build_endpoint(vec!["/checklists/", &list_id_segment, "/tasks.json"]) ;
+        let url = self.build_endpoint(vec!["/checklists/", &list_id_segment, "/tasks.json"]);
 
         // TODO: possibly extract ureq Agent (read up on purpose)
-        let task = ureq::get(url.as_str())
+        let response: ApiResponse = ureq::get(url.as_str())
             .set("X-Client-token", &self.api_token)
             .call()?
             .into_json()?;
 
         // TODO: deal with & test errors
         // TODO: can I extract the json error logic somehow? eg after into_json, call a method here that returns an ApiResponse::JsonError? Then I don't need the match everywhere.
-        Ok(task)
-
+        self.check_json_error_response(response)
         // Err(CheckvistError::AuthTokenFailure { message: "(fark)".to_string()})
+    }
+
+    // TODO: can this be parameterised on teh type of response object (task, checklist),
+    // and impl'd on APIResponse for use in all api-returning functions?
+    fn check_json_error_response(&self, response: ApiResponse) -> Result<Checklist, CheckvistError> {
+        match response {
+            ApiResponse::ValidList(returned_list) => Ok(returned_list),
+            // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string
+            ApiResponse::JsonError { message } => Err(CheckvistError::UnknownError { message }),
+        }
     }
 
     fn build_endpoint(&self, segments: Vec<&str>) -> Url {
