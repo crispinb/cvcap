@@ -16,8 +16,8 @@ fn client_creation_should_panic_with_invalid_url() {
 
 #[test]
 fn authentication_failure() {
-    let unauth_error = "Unauthenticated: no valid authentication data in request";
-    let error = HashMap::from([("message", unauth_error)]);
+    let auth_err_msg = "Unauthenticated: no valid authentication data in request";
+    let error = HashMap::from([("message", auth_err_msg)]);
     let error_json = serde_json::to_string(&error).unwrap();
     let mock = mock("GET", "/checklists/1.json")
         .match_header("X-Client-Token", "token")
@@ -28,16 +28,15 @@ fn authentication_failure() {
     let result = client.get_list(1).unwrap_err();
 
     mock.assert();
-    assert_eq!(
-        CheckvistError::UnknownError {
-            message: unauth_error.into()
-        },
-        result
-    );
+    let returned_err_msg = match result {
+        CheckvistError::UnknownError { message } => message,
+        _ => String::new(),
+    };
+    assert_eq!(auth_err_msg, returned_err_msg);
 }
 
 #[test]
-fn get_valid_list() {
+fn get_list() {
     let expected_list = Checklist {
         id: 1,
         name: "list1".to_string(),
@@ -64,7 +63,8 @@ fn get_tasks() {
         id: 1,
         content: "content".to_string(),
     };
-    let task_json = serde_json::to_string(&task).unwrap();
+    let tasks = vec![task];
+    let task_json = serde_json::to_string(&tasks).unwrap();
 
     let mock = mock("GET", "/checklists/1/tasks.json")
         .match_header("X-Client-Token", "token")
@@ -72,13 +72,37 @@ fn get_tasks() {
         .create();
 
     let client = CheckvistClient::new(mockito::server_url(), "token".into());
-    let tasks = client.get_tasks(1).unwrap();
-    
+    let returned_tasks = client.get_tasks(1).unwrap();
+
     mock.assert();
-    // TODO: now check task
+    assert_eq!(tasks, returned_tasks);
 }
 
-async fn basic_add_task() {
+#[test]
+fn get_tasks_error() {
+    let auth_err_msg = "unauthenticated: no valid authentication data in request";
+    let error = HashMap::from([("message", auth_err_msg)]);
+    let error_json = serde_json::to_string(&error).unwrap();
+    let mock = mock("GET", "/checklists/1/tasks.json")
+        .match_header("X-Client-Token", "token")
+        .with_body(error_json)
+        .create();
+
+    let client = CheckvistClient::new(mockito::server_url(), "token".into());
+    let response = client.get_tasks(1).unwrap_err();
+
+    mock.assert();
+    let returned_err_msg = match response {
+        CheckvistError::UnknownError { message } => message,
+        _ => String::new(),
+    };
+    assert_eq!(auth_err_msg, returned_err_msg);
+}
+
+#[test]
+fn add_task() {
+    unimplemented!("implement this bastard");
+
     // let mock_server = MockServer::start().await;
     // // 'content' is the only required field
     // let added_task = TempTaskForAdding {
