@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use core::fmt;
 use std::vec;
 
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,7 @@ use url::Url;
 // json return:
 //Object({"archived": Bool(false), "created_at": String("2020/09/13 21:45:52 +0000"), "id": Number(774394), "item_count": Number(16), "markdown?": Bool(true), "name": String("devtest"), "options": Number(3), "percent_completed": Number(0.0), "public": Bool(false), "read_only": Bool(false), "related_task_ids": Null, "tags": Object({"to_review": Bool(false)}), "tags_as_text": String("to_review"), "task_completed": Number(0), "task_count": Number(16), "updated_at": String("2022/04/26 18:41:15 +1000"), "user_count": Number(1), "user_updated_at": String("2022/04/26 18:41:15 +1000")})
 
-// If we don't need PartialEq other than for tests, we can conditionally compile attribute for tests only https://doc.rust-lang.org/reference/conditional-compilation.html. 
+// If we don't need PartialEq other than for tests, we can conditionally compile attribute for tests only https://doc.rust-lang.org/reference/conditional-compilation.html.
 #[derive(PartialEq, Debug, Deserialize, Serialize)]
 pub struct Checklist {
     pub id: i32,
@@ -21,42 +22,51 @@ pub struct Checklist {
     pub task_count: u16,
 }
 
-#[derive(PartialEq, Debug, Serialize, Deserialize)]
+#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
     pub content: String,
     pub id: i32,
+    pub position: i16
 }
 
-// REFACTOR: now we've eliminated PartialEq on errors, use Box<dyn Err> to store inner error 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum CheckvistError {
     UnknownError { message: String },
-    // for now I don't know how to merge get_results and get_result
-    DumbCBApiError,
-    NetworkError { status: u16, message: String },
+    NetworkError(ureq::Error),
+    // used by serde_json for decoding errors
+    IoError(std::io::Error),
 }
 
-impl From<ureq::Error> for CheckvistError {
-    fn from(original: ureq::Error) -> Self {
-        match original {
-            ureq::Error::Status(code, _) => Self::NetworkError {
-                status: code,
-                message: "".into(),
-            },
-            ureq::Error::Transport(t) => Self::NetworkError {
-                status: 0,
-                message: t.kind().to_string(),
-            },
+// TODO - REFACTOR: format error messages appropriately (& test)
+impl fmt::Display for CheckvistError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::IoError(ref err) => write!(f, "{:?}", err),
+            Self::NetworkError(ref err) => write!(f, "{:?}", err),
+            Self::UnknownError { ref message } => write!(f, "{}", message),
         }
     }
 }
 
-impl From<std::io::Error> for CheckvistError {
-    fn from(original: std::io::Error) -> Self {
-        println!("inner errlr: {:?}", original);
-        Self::UnknownError {
-            message: original.kind().to_string(),
+impl std::error::Error for CheckvistError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match *self {
+            Self::IoError(ref err) => Some(err),
+            Self::NetworkError(ref err) => Some(err),
+            Self::UnknownError { message: _ } => None,
         }
+    }
+}
+
+impl From<ureq::Error> for CheckvistError {
+    fn from(err: ureq::Error) -> Self {
+        CheckvistError::NetworkError(err)
+    }
+}
+
+impl From<std::io::Error> for CheckvistError {
+    fn from(err: std::io::Error) -> Self {
+        CheckvistError::IoError(err)
     }
 }
 
@@ -77,13 +87,19 @@ enum ApiResponse<T> {
     CheckvistApiError { message: String },
 }
 
-// thus far failing attempts to implement to_results on ApiResponse
-// impl <L> ApiResponse<L> {
-//     fn to_results<T>(&self) -> Result<Vec<T>, CheckvistError> {
-//         match self  {
-//             ApiResponse::ValidCheckvistList(v) => Ok(v),
-//             ApiResponse::CheckvistApiError { message } => Err(CheckvistError::UnknownError { message: message.to_string() }),
-//             _ => Err( CheckvistError::UnknownError { message: String::new() } ),
+// TODO - RESEARCH UNSOLVED PROBLEM:
+//        Ownership problems trying to implement this on ApiResponse
+//        (that don't occur when implementing on CheckVistClilent ??)
+// impl<T> ApiResponse<T> {
+//     fn to_results(&self) -> Result<Vec<T>, CheckvistError> {
+//         match *self {
+//             ApiResponse::ValidCheckvistList(ref v) => Ok(v),
+//             ApiResponse::CheckvistApiError { ref message } => Err(CheckvistError::UnknownError {
+//                 message: message.to_string(),
+//             }),
+//             _ => Err(CheckvistError::UnknownError {
+//                 message: String::new(),
+//             }),
 //         }
 //     }
 // }
@@ -105,23 +121,19 @@ impl CheckvistClient {
     }
 
     pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
-        let list_id_segment = list_id.to_string();
-        let url = self.build_endpoint(vec!["/checklists/", &list_id_segment, ".json"]);
+        let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), ".json"]);
 
         let response: ApiResponse<Checklist> = ureq::get(url.as_str())
             .set("X-Client-token", &self.api_token)
             .call()?
             .into_json()?;
 
-        // TODO: or make this a method on ApiResponse?
         self.to_result(response)
     }
 
     pub fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> {
-        let list_id_segment = list_id.to_string();
-        let url = self.build_endpoint(vec!["/checklists/", &list_id_segment, "/tasks.json"]);
+        let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), "/tasks.json"]);
 
-        // TODO: possibly extract ureq Agent (read up on purpose)
         let response: ApiResponse<Task> = ureq::get(url.as_str())
             .set("X-Client-token", &self.api_token)
             .call()?
@@ -130,23 +142,40 @@ impl CheckvistClient {
         self.to_results(response)
     }
 
-    // TODO: would prefer to implement these on ApiResponse, but so far failed (type problems)
-    // TODO: can this be merged with to_result?
-    fn to_results<T>(&self, response: ApiResponse<T>) -> Result<Vec<T>, CheckvistError> {
-        match response  {
-            ApiResponse::ValidCheckvistList(v) => Ok(v),
-            ApiResponse::CheckvistApiError { message } => Err(CheckvistError::UnknownError { message }),
-            _ => Err( CheckvistError::UnknownError { message: String::new() } ),
-        }
+    pub fn add_task(&self, list_id: u32, task: Task) -> Result<Task, CheckvistError> {
+        let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), "/tasks.json"]);
 
+        let response: ApiResponse<Task> = ureq::post(url.as_str())
+        .set("X-Client-Token", &self.api_token)
+        .send_json(task)?
+        .into_json()?;
+
+        self.to_result(response)
+    }
+
+    // TODO - RESEARCH UNSOLVED PROBLEM:
+    //        how to merge with to_result?
+    fn to_results<T>(&self, response: ApiResponse<T>) -> Result<Vec<T>, CheckvistError> {
+        match response {
+            ApiResponse::ValidCheckvistList(v) => Ok(v),
+            ApiResponse::CheckvistApiError { message } => {
+                Err(CheckvistError::UnknownError { message })
+            }
+            _ => Err(CheckvistError::UnknownError {
+                message: String::new(),
+            }),
+        }
     }
 
     fn to_result<T>(&self, response: ApiResponse<T>) -> Result<T, CheckvistError> {
         match response {
             ApiResponse::ValidCheckvistType(returned_struct) => Ok(returned_struct),
-            ApiResponse::ValidCheckvistList(_v) => Err( CheckvistError::DumbCBApiError ),
+            // as I don't know how to merge the 2 to_results, and we must deal with all responses here:
+            ApiResponse::ValidCheckvistList(_v) => panic!("Should never get here"),
             // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string so would hardly be reliable, but then could have a fallback type
-            ApiResponse::CheckvistApiError { message } => Err(CheckvistError::UnknownError { message }),
+            ApiResponse::CheckvistApiError { message } => {
+                Err(CheckvistError::UnknownError { message })
+            }
         }
     }
 
