@@ -17,10 +17,11 @@
 # Tasks
 * ultra simple (POC) capture-to-task
   + spec
-    - [ ] API client: method & test to push text to a new task in a list
+    - [x] API client: method & test to push text to a new task in a list
     - commandline
       * [ ] call API client with text with approx this UI: 
-          `checkvistcli new-task "text"` , with result:
+          `checkvistcli list 
+          `checkvistcli add "text"` , with result:
           `task "text" successfully added to list [preconfigured list name]`
       * [ ] first run, ask for name of list to capture to, & persist in a config file 
 

@@ -7,7 +7,6 @@ use url::Url;
 
 // curl --header "X-Client-Token: [token]" "https://checkvist.com/checklists.json"
 //     .get("https://checkvist.com/checklists.json")
-// current token: HRpvPJqF4uvwVR8jQ3mkiqlwCm7Y6n
 // if token is bad or expired, receive: `{"message":"Unauthenticated: no valid authentication data in request"}`
 // json return:
 //Object({"archived": Bool(false), "created_at": String("2020/09/13 21:45:52 +0000"), "id": Number(774394), "item_count": Number(16), "markdown?": Bool(true), "name": String("devtest"), "options": Number(3), "percent_completed": Number(0.0), "public": Bool(false), "read_only": Bool(false), "related_task_ids": Null, "tags": Object({"to_review": Bool(false)}), "tags_as_text": String("to_review"), "task_completed": Number(0), "task_count": Number(16), "updated_at": String("2022/04/26 18:41:15 +1000"), "user_count": Number(1), "user_updated_at": String("2022/04/26 18:41:15 +1000")})
@@ -24,8 +23,10 @@ pub struct Checklist {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
-    pub content: String,
+    // TODO - RESEARCH NEEDED: 
+    // id is ignored for sent tasks, so doesn't actually cause a problem, but should think about how to deal with fields that vary for sending/receiveing
     pub id: i32,
+    pub content: String,
     pub position: i16
 }
 
@@ -87,7 +88,7 @@ enum ApiResponse<T> {
     CheckvistApiError { message: String },
 }
 
-// TODO - RESEARCH UNSOLVED PROBLEM:
+// TODO - RESEARCH NEEDED:
 //        Ownership problems trying to implement this on ApiResponse
 //        (that don't occur when implementing on CheckVistClilent ??)
 // impl<T> ApiResponse<T> {
@@ -153,7 +154,7 @@ impl CheckvistClient {
         self.to_result(response)
     }
 
-    // TODO - RESEARCH UNSOLVED PROBLEM:
+    // TODO - RESEARCH NEEDED:
     //        how to merge with to_result?
     fn to_results<T>(&self, response: ApiResponse<T>) -> Result<Vec<T>, CheckvistError> {
         match response {
