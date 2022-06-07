@@ -90,12 +90,11 @@ fn get_list() {
 
 #[test]
 fn get_tasks() {
-    let task = Task {
+    let tasks = vec!(Task {
         id: 1,
         position: 1,
         content: "content".to_string(),
-    };
-    let tasks = vec![task];
+    });
     let task_json = serde_json::to_string(&tasks).unwrap();
     let mock = new_mock_get("/checklists/1/tasks.json", task_json);
 
@@ -125,7 +124,6 @@ fn add_task() {
 }
 
 // Utility Functions
-// TODO - REFACTOR: get & post utilities
 fn new_mock_get(url: &str, return_body: String) -> mockito::Mock {
     mock("GET", url)
         .match_header("X-Client-Token", "token")

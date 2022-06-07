@@ -11,24 +11,26 @@
 * Simple cli, with main focus on quick capture (eg of clipboard) to a (preconfigured) list
 * A service/daemon to run locally, accessed via OS ports, or Web sockets, or HTTP 
 * Trello-ish interfaces
-  * using egui (quick / small)
-  * using React / Chakra
+  * egui (quick / small)
+  * React / Chakra 
 
 # Tasks
 * ultra simple (POC) capture-to-task
   + spec
     - [x] API client: method & test to push text to a new task in a list
     - commandline
-      * [ ] call API client with text with approx this UI: 
+      * [x] call API client with text with approx this UI: 
           `checkvistcli list 
           `checkvistcli add "text"` , with result:
           `task "text" successfully added to list [preconfigured list name]`
       * [ ] first run, ask for name of list to capture to, & persist in a config file 
+      * [ ] add command to change default capture list
 
-* make cli usable
+* make cli OS-friendly
   + https://rust-cli.github.io/book/index.html
       * [ ] replace "text" with stdin
-* handle secrets https://crates.io/crates/secrecy for the token (wrapper type to avoid exposing during logging etc))
+* how to deal with auth on first run?
+  * handle secrets https://crates.io/crates/secrecy for the token (wrapper type to avoid exposing during logging etc))
 
 # Research Required
 * how to create a daemon process similar to docker cli's, that doesn't need a service installation?
@@ -40,3 +42,5 @@
   Looks like a good ref for making the client roughly prod-ready
 * https://rust-cli.github.io/book/index.html
 * egui backend? https://github.com/emilk/egui
+* config file library https://github.com/rust-cli/confy
+* config files without a library https://github.com/rust-adventure/lets-code-cli-config
