@@ -123,7 +123,7 @@ fn add_task() {
     assert_eq!(task, returned_task);
 }
 
-// Utility Functions
+// Utilities
 fn new_mock_get(url: &str, return_body: String) -> mockito::Mock {
     mock("GET", url)
         .match_header("X-Client-Token", "token")

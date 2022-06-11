@@ -1,26 +1,30 @@
 #![allow(unused_imports, unused_variables)]
 use checkvistcli::{CheckvistClient, Task};
 use clap::{Args, Command, Parser, Subcommand};
-use std::env;
+use directories::ProjectDirs;
+use serde::Deserialize;
 use std::error::Error;
 use std::fmt::Display;
+use std::{env, fs};
 
+static CONFIG_FILE_NAME: &str = "cvcap.toml";
 // TODO: ge&t this during build
 static VERSION: &str = "0.1";
-
-const BANNER: &str = r"  ____ _               _           _     _             _ _
-/ ___| |__   ___  ___| | ____   _(_)___| |_       ___| (_)
-| |   | '_ \ / _ \/ __| |/ /\ \ / / / __| __|____ / __| | |
-| |___| | | |  __/ (__|   <  \ V /| \__ \ ||_____| (__| | |
-\____|_| |_|\___|\___|_|\_\  \_/ |_|___/\__|     \___|_|_|
-
-
-
+const BANNER: &str = r"                           
+                           
+                          
+ __        __   __,    _  
+/    |  |_/    /  |  |/ \_
+\___/ \/  \___/\_/|_/|__/ 
+                    /|    
+                    \|    
+                              
 ";
 
-#[derive(Parser)]
-#[clap(version = VERSION)]
+#[derive(Parser, Debug)]
 #[clap(name = BANNER)]
+#[clap(about = "A minimal Checkvist (https://checkvist.com) capture tool ")]
+#[clap(version = VERSION)]
 struct Cli {
     #[clap(subcommand)]
     command: Commands,
@@ -55,14 +59,41 @@ impl Error for CliError {
     }
 }
 
+impl From<std::io::Error> for CliError {
+    fn from(err: std::io::Error) -> Self {
+        CliError {
+            message: "IO Error".into(),
+            inner_error: Box::new(err),
+        }
+    }
+}
+
+impl From<toml::de::Error> for CliError {
+    fn from(err: toml::de::Error) -> Self {
+        CliError {
+            message: "Bad Toml in config file".into(),
+            inner_error: Box::new(err),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+struct Config {
+    default_list_id: u32,
+    default_list_name: String,
+}
+
 fn main() -> Result<(), CliError> {
-    // TODO: get from config file and/or first run
-    let list_name = "Dev List";
-    let list_id = 774394;
-    //
+
+    let config = match read_or_create_config() {
+        Ok(config) => config,
+        Err(err) => todo!("figure out {}", err),
+    };
 
     let cli = Cli::parse();
 
+    // TODO - RESEARCH NEEDED:
+    //        - how to capture and where to store token
     const TOKEN_KEY: &str = "CHECKVIST_API_TOKEN";
     let need_token_msg: String = format!("you must set the {} environment variable", TOKEN_KEY);
     let token = match env::var(TOKEN_KEY) {
@@ -78,31 +109,42 @@ fn main() -> Result<(), CliError> {
     let client = CheckvistClient::new("https://checkvist.com/".into(), token);
 
     match cli.command {
-        Commands::List { list_id } => todo!(),
+        Commands::List { list_id } => todo!("TBD"),
         Commands::Add { content } => {
-            // add task
             let task = Task {
-                id: 1,
+                // not sure what to do about ids in new (local only) tasks
+                id: config.default_list_id,
                 content,
                 position: 1,
             };
 
-            let success_message = match client.add_task(list_id, task) {
+            let success_message = match client.add_task(config.default_list_id, task) {
                 Ok(returned_task) => returned_task.content,
                 Err(err) => {
                     return Err(CliError {
                         message: err.to_string(),
-                        inner_error: Box::new(err)
+                        inner_error: Box::new(err),
                     })
                 }
             };
 
             println!(
                 r#"Added task "{}" to list "{}""#,
-                success_message, list_name
+                success_message, config.default_list_name
             );
         }
     }
 
     Ok(())
+}
+
+// TODO: add creation on first run
+fn read_or_create_config() -> Result<Config, CliError> {
+    let config_path = ProjectDirs::from("com", "not10x", "cvcap")
+        .expect("OS cannot find HOME dir. Cannot proceed")
+        .config_dir()
+        .join(CONFIG_FILE_NAME);
+    let config_file = fs::read_to_string(config_path)?;
+    let config = toml::from_str(&config_file)?;
+    Ok(config)
 }

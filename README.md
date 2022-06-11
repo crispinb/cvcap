@@ -1,19 +1,18 @@
-  ____ _               _           _     _             _ _ 
- / ___| |__   ___  ___| | ____   _(_)___| |_       ___| (_)
-| |   | '_ \ / _ \/ __| |/ /\ \ / / / __| __|____ / __| | |
-| |___| | | |  __/ (__|   <  \ V /| \__ \ ||_____| (__| | |
- \____|_| |_|\___|\___|_|\_\  \_/ |_|___/\__|     \___|_|_|
+                               
 
-                                                           
+  ___ __   __ ___  __ _  _ __  
+ / __|\ \ / // __|/ _` || '_ \ 
+| (__  \ V /| (__| (_| || |_) |
+ \___|  \_/  \___|\__, _|| .__/ 
+
+                        |_|    
 
 # Aims
-* A client library to access the main CRUD operations of the Checkvist API
-* Simple cli, with main focus on quick capture (eg of clipboard) to a (preconfigured) list
-* A service/daemon to run locally, accessed via OS ports, or Web sockets, or HTTP 
+* Simple cli for Checkvist, with main focus on quick capture (eg of clipboard) to a (preconfigured) list
+* ?A service/daemon to run locally, accessed via OS ports, or Web sockets, or HTTP 
 * Trello-ish interfaces
-  * egui (quick / small)
-  * React / Chakra 
-
+  + egui (quick / small)
+  + React / Chakra 
 # Tasks
 * ultra simple (POC) capture-to-task
   + spec
@@ -23,14 +22,26 @@
           `checkvistcli list 
           `checkvistcli add "text"` , with result:
           `task "text" successfully added to list [preconfigured list name]`
-      * [ ] first run, ask for name of list to capture to, & persist in a config file 
-      * [ ] add command to change default capture list
+
+## platform issues
+
+  + [ ] get Windows 10 running in a VM
+
+## First run
+
+* [ ] ask for name of list to capture to, & persist in a config file 
+* [ ] add command to change default capture list
+
+## Misc features 
+
+* [ ] capture from stdin
+* [ ] capture from clipboard (can this be made all-platform?)
 
 * make cli OS-friendly
   + https://rust-cli.github.io/book/index.html
       * [ ] replace "text" with stdin
 * how to deal with auth on first run?
-  * handle secrets https://crates.io/crates/secrecy for the token (wrapper type to avoid exposing during logging etc))
+  + handle secrets https://crates.io/crates/secrecy for the token (wrapper type to avoid exposing during logging etc))
 
 # Research Required
 * how to create a daemon process similar to docker cli's, that doesn't need a service installation?
@@ -44,3 +55,6 @@
 * egui backend? https://github.com/emilk/egui
 * config file library https://github.com/rust-cli/confy
 * config files without a library https://github.com/rust-adventure/lets-code-cli-config
+## Windows VM
+* https://docs.fedoraproject.org/en-US/quick-docs/getting-started-with-virtualization/ 
+* https://ask.fedoraproject.org/t/which-vm-for-a-windows-guest-in-2022/23242/2

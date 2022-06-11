@@ -25,9 +25,9 @@ pub struct Checklist {
 pub struct Task {
     // TODO - RESEARCH NEEDED: 
     // id is ignored for sent tasks, so doesn't actually cause a problem, but should think about how to deal with fields that vary for sending/receiveing
-    pub id: i32,
+    pub id: u32,
     pub content: String,
-    pub position: i16
+    pub position: u16
 }
 
 #[derive(Debug)]
