@@ -1,6 +1,6 @@
 #![allow(unused_imports, unused_variables)]
-use cvcap::{CheckvistClient, CheckvistError, Task};
 use clap::{Args, Command, Parser, Subcommand};
+use cvcap::{CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
 use serde::Deserialize;
 use std::error::Error;
@@ -120,6 +120,10 @@ fn main() -> Result<(), CliError> {
                 Err(err) => get_config_from_user(&client).unwrap(),
             };
 
+            // FIXME: single-case weirdness. Fails all sending to (and only to) @main, but  works in curl --header "X-Client-Token: $CHECKVIST_API_TOKEN" --json '{"content": "curl add", "position": 1}'  "https://checkvist.com/checklists/565368/tasks.json"
+            // weird, so see if there's anything to learn from the fix
+            // - "learn german"
+
             let task = Task {
                 // not sure what to do about ids in new (local only) tasks
                 id: config.default_list_id,
@@ -159,18 +163,40 @@ fn get_config_from_file() -> Result<Config, CliError> {
 }
 
 fn get_config_from_user(client: &CheckvistClient) -> Result<Config, CliError> {
-    let temp_msg: String = client
+    let available_lists: Vec<(u32, String)> = client
         .get_lists()
-        // TODO: collect up a tuple with list id & name
-        .map(|lists| lists.into_iter().map(|list| list.name).collect())?;
+        .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())?;
 
-    dbg!("lists: {}", temp_msg);
+    println!("Your lists:\n");
+    let mut i = 0;
+    for list in &available_lists {
+        i += 1;
+        println!("{}: {}", i, list.1);
+    }
+    println!("\n");
 
-
-    // TODO: present list to user, and populate a config with their choice
+    // TODO - RESEARCH NEEDED:
+    //        idiomatic way of collecting cmdline input
+    let chosen_list = loop {
+        println!(
+            "\nPlease select a list by entering a number between 1 and  {}\n",
+            available_lists.len()
+        );
+        let mut buf = String::new();
+        std::io::stdin().read_line(&mut buf)?;
+        let chosen_index: usize = match buf.trim().parse() {
+            Ok(i) => i,
+            Err(_) => {
+                continue;
+            }
+        };
+        if let Some(list) = available_lists.get(chosen_index - 1) {
+            break list;
+        }
+    };
 
     Ok(Config {
-        default_list_id: 1,
-        default_list_name: "none".into(),
-    }) // shut compiler up
+        default_list_id: chosen_list.0,
+        default_list_name: chosen_list.1.clone(),
+    })
 }

@@ -14,7 +14,7 @@ use url::Url;
 // If we don't need PartialEq other than for tests, we can conditionally compile attribute for tests only https://doc.rust-lang.org/reference/conditional-compilation.html.
 #[derive(PartialEq, Debug, Deserialize, Serialize)]
 pub struct Checklist {
-    pub id: i32,
+    pub id: u32,
     pub name: String,
     // TODO: automatically convert to a date type of some sort
     pub updated_at: String,
@@ -161,7 +161,6 @@ impl CheckvistClient {
             .set("X-Client-Token", &self.api_token)
             .send_json(task)?
             .into_json()?;
-
         self.to_result(response)
     }
 
