@@ -1,5 +1,5 @@
 #![allow(unused_imports, unused_variables)]
-use checkvistcli::{CheckvistClient, Task};
+use cvcap::{CheckvistClient, CheckvistError, Task};
 use clap::{Args, Command, Parser, Subcommand};
 use directories::ProjectDirs;
 use serde::Deserialize;
@@ -11,14 +11,12 @@ static CONFIG_FILE_NAME: &str = "cvcap.toml";
 // TODO: ge&t this during build
 static VERSION: &str = "0.1";
 const BANNER: &str = r"                           
-                           
-                          
- __        __   __,    _  
-/    |  |_/    /  |  |/ \_
-\___/ \/  \___/\_/|_/|__/ 
-                    /|    
-                    \|    
+  _   _   _   _   _  
+ / \ / \ / \ / \ / \ 
+( c | v | c | a | p )
+ \_/ \_/ \_/ \_/ \_/ 
                               
+
 ";
 
 #[derive(Parser, Debug)]
@@ -77,6 +75,15 @@ impl From<toml::de::Error> for CliError {
     }
 }
 
+impl From<CheckvistError> for CliError {
+    fn from(err: CheckvistError) -> Self {
+        CliError {
+            message: "Error calling Checkvist API".into(),
+            inner_error: Box::new(err),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug)]
 struct Config {
     default_list_id: u32,
@@ -84,12 +91,6 @@ struct Config {
 }
 
 fn main() -> Result<(), CliError> {
-
-    let config = match read_or_create_config() {
-        Ok(config) => config,
-        Err(err) => todo!("figure out {}", err),
-    };
-
     let cli = Cli::parse();
 
     // TODO - RESEARCH NEEDED:
@@ -109,8 +110,16 @@ fn main() -> Result<(), CliError> {
     let client = CheckvistClient::new("https://checkvist.com/".into(), token);
 
     match cli.command {
-        Commands::List { list_id } => todo!("TBD"),
+        Commands::List { list_id } => {}
+
         Commands::Add { content } => {
+            let config = match get_config_from_file() {
+                Ok(config) => config,
+                // TODO: make distinction between no file VS badly formattted toml?
+                // TODO: handle error here or in func?
+                Err(err) => get_config_from_user(&client).unwrap(),
+            };
+
             let task = Task {
                 // not sure what to do about ids in new (local only) tasks
                 id: config.default_list_id,
@@ -139,7 +148,7 @@ fn main() -> Result<(), CliError> {
 }
 
 // TODO: add creation on first run
-fn read_or_create_config() -> Result<Config, CliError> {
+fn get_config_from_file() -> Result<Config, CliError> {
     let config_path = ProjectDirs::from("com", "not10x", "cvcap")
         .expect("OS cannot find HOME dir. Cannot proceed")
         .config_dir()
@@ -147,4 +156,21 @@ fn read_or_create_config() -> Result<Config, CliError> {
     let config_file = fs::read_to_string(config_path)?;
     let config = toml::from_str(&config_file)?;
     Ok(config)
+}
+
+fn get_config_from_user(client: &CheckvistClient) -> Result<Config, CliError> {
+    let temp_msg: String = client
+        .get_lists()
+        // TODO: collect up a tuple with list id & name
+        .map(|lists| lists.into_iter().map(|list| list.name).collect())?;
+
+    dbg!("lists: {}", temp_msg);
+
+
+    // TODO: present list to user, and populate a config with their choice
+
+    Ok(Config {
+        default_list_id: 1,
+        default_list_name: "none".into(),
+    }) // shut compiler up
 }

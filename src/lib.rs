@@ -23,11 +23,11 @@ pub struct Checklist {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
-    // TODO - RESEARCH NEEDED: 
+    // TODO - RESEARCH NEEDED:
     // id is ignored for sent tasks, so doesn't actually cause a problem, but should think about how to deal with fields that vary for sending/receiveing
     pub id: u32,
     pub content: String,
-    pub position: u16
+    pub position: u16,
 }
 
 #[derive(Debug)]
@@ -121,6 +121,17 @@ impl CheckvistClient {
         }
     }
 
+    pub fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
+        let url = self.build_endpoint(vec!["/checklists.json"]);
+
+        let response: ApiResponse<Checklist> = ureq::get(url.as_str())
+            .set("X-Client-Token", &self.api_token)
+            .call()?
+            .into_json()?;
+
+        self.to_results(response)
+    }
+
     pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
         let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), ".json"]);
 
@@ -147,9 +158,9 @@ impl CheckvistClient {
         let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), "/tasks.json"]);
 
         let response: ApiResponse<Task> = ureq::post(url.as_str())
-        .set("X-Client-Token", &self.api_token)
-        .send_json(task)?
-        .into_json()?;
+            .set("X-Client-Token", &self.api_token)
+            .send_json(task)?
+            .into_json()?;
 
         self.to_result(response)
     }
