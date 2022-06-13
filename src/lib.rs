@@ -38,7 +38,6 @@ pub enum CheckvistError {
     IoError(std::io::Error),
 }
 
-// TODO - REFACTOR: format error messages appropriately (& test)
 impl fmt::Display for CheckvistError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -190,6 +189,7 @@ impl CheckvistClient {
         }
     }
 
+    // TODO - REFACTOR: switch all str use in paths to PathBuf and &Path
     fn build_endpoint(&self, segments: Vec<&str>) -> Url {
         self.base_url
             .join(&segments.concat())
