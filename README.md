@@ -18,7 +18,7 @@
           `checkvistcli list 
           `checkvistcli add "text"` , with result:
           `task "text" successfully added to list [preconfigured list name]`
-      * [ ] first run (no config file).
+      * [X] ~~*first run (no config file).*~~ [2022-06-13]
           - (just assuming api token for now)
           - get list of lists (need new api method)
           - present and offer which list
@@ -30,16 +30,18 @@
 
 ## platform issues
 
-  + [ ] get Windows 10 running in a VM
+  + [X] ~~*get Windows 10 running in a VM*~~ [2022-06-13]
+  * [ ] set up file sharing with the VM
 
 ## First run
 
-* [ ] ask for name of list to capture to, & persist in a config file 
+* [X] ~~*ask for name of list to capture to, & persist in a config file*~~ [2022-06-13] 
 * [ ] add command to change default capture list
 
 ## Misc features 
 
 * [ ] capture from stdin
+* [ ] send errors to stderr
 * [ ] capture from clipboard (can this be made all-platform?)
 * [ ] when saving a new config file, offer to show in file manager (or terminal)?
 

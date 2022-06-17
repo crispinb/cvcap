@@ -3,13 +3,8 @@ use core::fmt;
 use std::vec;
 
 use serde::{Deserialize, Serialize};
+use ureq::Response;
 use url::Url;
-
-// curl --header "X-Client-Token: [token]" "https://checkvist.com/checklists.json"
-//     .get("https://checkvist.com/checklists.json")
-// if token is bad or expired, receive: `{"message":"Unauthenticated: no valid authentication data in request"}`
-// json return:
-//Object({"archived": Bool(false), "created_at": String("2020/09/13 21:45:52 +0000"), "id": Number(774394), "item_count": Number(16), "markdown?": Bool(true), "name": String("devtest"), "options": Number(3), "percent_completed": Number(0.0), "public": Bool(false), "read_only": Bool(false), "related_task_ids": Null, "tags": Object({"to_review": Bool(false)}), "tags_as_text": String("to_review"), "task_completed": Number(0), "task_count": Number(16), "updated_at": String("2022/04/26 18:41:15 +1000"), "user_count": Number(1), "user_updated_at": String("2022/04/26 18:41:15 +1000")})
 
 // If we don't need PartialEq other than for tests, we can conditionally compile attribute for tests only https://doc.rust-lang.org/reference/conditional-compilation.html.
 #[derive(PartialEq, Debug, Deserialize, Serialize)]
@@ -106,6 +101,8 @@ enum ApiResponse<T> {
 
 #[derive(Debug)]
 pub struct CheckvistClient {
+    // TODO: decide if need this (eg if library were to be used persistently in a server?)
+    // I think ureq requires an agent for middleware
     client: HttpClient,
     base_url: Url,
     api_token: String,
@@ -155,8 +152,26 @@ impl CheckvistClient {
 
     pub fn add_task(&self, list_id: u32, task: Task) -> Result<Task, CheckvistError> {
         let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), "/tasks.json"]);
+        
+        fn temp_middleware(
+            r: ureq::Request,
+            n: ureq::MiddlewareNext,
+        ) -> Result<Response, ureq::Error> {
+            dbg!(&r);
+            n.handle(r)
+        }
+        use std::sync::Arc;
+        use ureq::{Agent, AgentBuilder};
+        let b = AgentBuilder::new();
+        let proxy = ureq::Proxy::new("localhost:8080").unwrap();
+        let a = b.middleware(temp_middleware)
+          .tls_connector(Arc::new(native_tls::TlsConnector::new().unwrap()))
+        .proxy(proxy)
+        .build();
 
-        let response: ApiResponse<Task> = ureq::post(url.as_str())
+        // let response: ApiResponse<Task> = ureq::post(url.as_str())
+        let response: ApiResponse<Task> = a
+            .post(url.as_str())
             .set("X-Client-Token", &self.api_token)
             .send_json(task)?
             .into_json()?;
