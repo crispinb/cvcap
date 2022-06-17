@@ -3,7 +3,6 @@ use core::fmt;
 use std::vec;
 
 use serde::{Deserialize, Serialize};
-use ureq::Response;
 use url::Url;
 
 // If we don't need PartialEq other than for tests, we can conditionally compile attribute for tests only https://doc.rust-lang.org/reference/conditional-compilation.html.
@@ -18,9 +17,8 @@ pub struct Checklist {
 
 #[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
-    // TODO - RESEARCH NEEDED:
-    // id is ignored for sent tasks, so doesn't actually cause a problem, but should think about how to deal with fields that vary for sending/receiveing
-    pub id: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
     pub content: String,
     pub position: u16,
 }
@@ -77,8 +75,8 @@ impl HttpClient {
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 enum ApiResponse<T> {
-    ValidCheckvistType(T),
-    ValidCheckvistList(Vec<T>),
+    OkCheckvistItem(T),
+    OkCheckvistList(Vec<T>),
     CheckvistApiError { message: String },
 }
 
@@ -152,26 +150,8 @@ impl CheckvistClient {
 
     pub fn add_task(&self, list_id: u32, task: Task) -> Result<Task, CheckvistError> {
         let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), "/tasks.json"]);
-        
-        fn temp_middleware(
-            r: ureq::Request,
-            n: ureq::MiddlewareNext,
-        ) -> Result<Response, ureq::Error> {
-            dbg!(&r);
-            n.handle(r)
-        }
-        use std::sync::Arc;
-        use ureq::{Agent, AgentBuilder};
-        let b = AgentBuilder::new();
-        let proxy = ureq::Proxy::new("localhost:8080").unwrap();
-        let a = b.middleware(temp_middleware)
-          .tls_connector(Arc::new(native_tls::TlsConnector::new().unwrap()))
-        .proxy(proxy)
-        .build();
 
-        // let response: ApiResponse<Task> = ureq::post(url.as_str())
-        let response: ApiResponse<Task> = a
-            .post(url.as_str())
+        let response: ApiResponse<Task> = ureq::post(url.as_str())
             .set("X-Client-Token", &self.api_token)
             .send_json(task)?
             .into_json()?;
@@ -182,7 +162,7 @@ impl CheckvistClient {
     //        how to merge with to_result?
     fn to_results<T>(&self, response: ApiResponse<T>) -> Result<Vec<T>, CheckvistError> {
         match response {
-            ApiResponse::ValidCheckvistList(v) => Ok(v),
+            ApiResponse::OkCheckvistList(v) => Ok(v),
             ApiResponse::CheckvistApiError { message } => {
                 Err(CheckvistError::UnknownError { message })
             }
@@ -194,9 +174,9 @@ impl CheckvistClient {
 
     fn to_result<T>(&self, response: ApiResponse<T>) -> Result<T, CheckvistError> {
         match response {
-            ApiResponse::ValidCheckvistType(returned_struct) => Ok(returned_struct),
+            ApiResponse::OkCheckvistItem(returned_struct) => Ok(returned_struct),
             // as I don't know how to merge the 2 to_results, and we must deal with all responses here:
-            ApiResponse::ValidCheckvistList(_v) => panic!("Should never get here"),
+            ApiResponse::OkCheckvistList(_v) => panic!("Should never get here"),
             // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string so would hardly be reliable, but then could have a fallback type
             ApiResponse::CheckvistApiError { message } => {
                 Err(CheckvistError::UnknownError { message })

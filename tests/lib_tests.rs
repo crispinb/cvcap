@@ -91,7 +91,7 @@ fn get_list() {
 #[test]
 fn get_tasks() {
     let tasks = vec!(Task {
-        id: 1,
+        id: Some(1),
         position: 1,
         content: "content".to_string(),
     });
@@ -108,7 +108,7 @@ fn get_tasks() {
 #[test]
 fn add_task() {
     let task = Task {
-        id: 1,
+        id: Some(1),
         position: 1,
         content: "some text".into(),
     };

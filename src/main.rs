@@ -1,38 +1,3 @@
-// FIXME: randomish weirdness. Fails all sending to some lists, eg. @main, @local, and learn german, but  works for others (eg @techlog, learn python, guitar). Same request works in curl --header "X-Client-Token: $CHECKVIST_API_TOKEN" --json '{"content": "curl add", "position": 1}'  "https://checkvist.com/checklists/565368/tasks.json"
-// Approaches
-// - middleware to get more thorough view of request
-//   - revealed nothing useful
-// - detailed logging
-//   - installed env_logger - un/successful requests pasted below. Nothing useful
-// - build a quick toy based on reqwest, to see if the same happens. Is this  ureq-specific?
-//  - works for all lists in reqwest (blocking variant)!
-// - https proxy/spy?
-// Failing with list '@main':
-        // 2022-06-17T01:32:39Z DEBUG ureq::unit] sending request POST https://checkvist.com/checklists/565368/tasks.json
-        // [2022-06-17T01:32:39Z DEBUG ureq::unit] writing prelude: POST /checklists/565368/tasks.json HTTP/1.1
-        //     Host: checkvist.com
-        //     User-Agent: ureq/2.4.0
-        //     Accept: */*
-        //     X-Client-Token: fSjTZy2JVN5eHAodmwww09SZnhDnHS
-        //     Content-Type: application/json
-        //     accept-encoding: gzip
-        //     Content-Length: 43
-        // [2022-06-17T01:32:40Z DEBUG ureq::unit] response 403 to POST https://checkvist.com/checklists/565368/tasks.json
-        // Error: CheckvistError(NetworkError(Status(403, Response[status: 403, status_text: Forbidden, url: https://checkvist.com/checklists/565368/tasks.json])))
-        // [2022-06-17T01:32:40Z DEBUG ureq::stream] dropping stream: TcpStream { addr: 192.168.1.108:48562, peer: 89.149.211.214:443, fd: 3 }gcc
-// Succeeding with list 'ziglang':
-        // 2022-06-17T01:35:15Z DEBUG ureq::unit] sending request POST https://checkvist.com/checklists/826225/tasks.json
-        // [2022-06-17T01:35:15Z DEBUG ureq::unit] writing prelude: POST /checklists/826225/tasks.json HTTP/1.1
-        //     Host: checkvist.com
-        //     User-Agent: ureq/2.4.0
-        //     Accept: */*
-        //     X-Client-Token: fSjTZy2JVN5eHAodmwww09SZnhDnHS
-        //     Content-Type: application/json
-        //     accept-encoding: gzip
-        //     Content-Length: 43
-        // [2022-06-17T01:35:16Z DEBUG ureq::unit] response 200 to POST https://checkvist.com/checklists/826225/tasks.json
-        // [2022-06-17T01:35:16Z DEBUG ureq::stream] dropping stream: TcpStream { addr: 192.168.1.108:59994, peer: 89.149.211.214:443, fd: 3 }
-        // Added task "test" to list "ziglang"
 #![allow(unused_imports, unused_variables)]
 use clap::{Args, Command, Parser, Subcommand};
 use cvcap::{CheckvistClient, CheckvistError, Task};
@@ -146,7 +111,6 @@ struct Config {
 fn main() -> Result<(), CliError> {
     env_logger::init();
 
-
     let cli = Cli::parse();
 
     // TODO - RESEARCH NEEDED:
@@ -183,8 +147,7 @@ fn main() -> Result<(), CliError> {
             };
 
             let task = Task {
-                // not sure what to do about ids in new (local only) tasks
-                id: 0,
+                id: None,
                 content,
                 position: 1,
             };
