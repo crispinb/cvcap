@@ -1,16 +1,18 @@
 #![allow(unused_imports, unused_variables)]
+use anyhow::{Context, Result};
 use clap::{Args, Command, Parser, Subcommand};
-use cvcap::{CheckvistClient, CheckvistError, Task};
+use cvcap::{Checklist, CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fs::{create_dir, File};
 use std::path::PathBuf;
 use std::{env, fs};
 
 static CONFIG_FILE_NAME: &str = "cvcap.toml";
-// TODO: ge&t this during build
+// TODO: get/create version during build
 static VERSION: &str = "0.1";
 const BANNER: &str = r"                           
   _   _   _   _   _  
@@ -41,13 +43,14 @@ enum Commands {
     },
 }
 
-#[derive(Debug)]
-
 // TODO - RESEARCH NEEDED:
 //        Variants per external error type are ridiculous.
 //        What I want is a type with a Box dyn inner error, but
 //        this always results in compile errors for Display ( to do
 // with displaying an unsized box value)
+#[derive(Debug)]
+
+// TODO - REFACTOR: replace with anyhow?
 enum CliError {
     Error { message: String },
     IOError(std::io::Error),
@@ -110,21 +113,11 @@ struct Config {
 
 fn main() -> Result<(), CliError> {
     env_logger::init();
-
     let cli = Cli::parse();
 
-    // TODO - RESEARCH NEEDED:
-    //        - how to capture and where to store token
-    // TODO: switch to OsString / &OSStr
-    const TOKEN_KEY: &str = "CHECKVIST_API_TOKEN";
-    let need_token_msg: String = format!("you must set the {} environment variable", TOKEN_KEY);
-    let token = match env::var(TOKEN_KEY) {
-        Ok(token) => token,
-        Err(err) => {
-            return Err(CliError::Error {
-                message: "Can't get token from environment".into(),
-            })
-        }
+    let token = match api_token() {
+        Ok(value) => value,
+        Err(value) => return value,
     };
 
     let client = CheckvistClient::new("https://checkvist.com/".into(), token);
@@ -132,17 +125,23 @@ fn main() -> Result<(), CliError> {
     match cli.command {
         Commands::List { list_id } => todo!(),
         Commands::Add { content } => {
-            // TODO - RESEARCH NEEDED:
-            //        error handling
-            let config = match get_config_from_file() {
-                Ok(config) => config,
-                Err(err) => {
-                    let config = get_config_from_user(&client).unwrap();
+            let config = if let Some(config) = get_config_from_file() {
+                config
+            } else {
+                let available_lists: Vec<(u32, String)> = client
+                    .get_lists()
+                    .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())?;
+
+                if let Some(config) = get_config_from_user(available_lists) {
                     if user_yn("Do you want to add your list as the default to a new config file?")
                     {
-                        create_new_config_file(&config).unwrap();
-                    }
+                        create_new_config_file(&config)?;
+                    };
                     config
+                } else {
+                    return Err(CliError::Error {
+                        message: "Cannot get config from either config file or from user".into(),
+                    });
                 }
             };
 
@@ -167,10 +166,27 @@ fn main() -> Result<(), CliError> {
     Ok(())
 }
 
-fn get_config_from_file() -> Result<Config, CliError> {
-    let config_file = fs::read_to_string(config_file_path())?;
-    let config = toml::from_str(&config_file)?;
-    Ok(config)
+// TODO - RESEARCH NEEDED:
+//        - how to capture and where to store token
+const TOKEN_KEY: &str = "CHECKVIST_API_TOKEN";
+fn api_token() -> Result<String, Result<(), CliError>> {
+    let key: &OsStr = OsStr::new(TOKEN_KEY);
+    let need_token_msg: String = format!("you must set the {:?} environment variable", key);
+    let token = match env::var(key) {
+        Ok(token) => token,
+        Err(err) => {
+            return Err(Err(CliError::Error {
+                message: "Can't get token from environment".into(),
+            }))
+        }
+    };
+    Ok(token)
+}
+
+fn get_config_from_file() -> Option<Config> {
+    let config_file = fs::read_to_string(config_file_path()).ok()?;
+    let config = toml::from_str(&config_file).ok()?;
+    Some(config)
 }
 
 fn config_file_path() -> PathBuf {
@@ -180,7 +196,6 @@ fn config_file_path() -> PathBuf {
         .join(CONFIG_FILE_NAME)
 }
 
-// TODO - REFACTOR: merge with get_config_from_user?
 fn user_yn(yes_no_question: &str) -> bool {
     println!("{} [Y/N]?", yes_no_question);
 
@@ -189,13 +204,8 @@ fn user_yn(yes_no_question: &str) -> bool {
         std::io::stdin()
             .read_line(&mut buf)
             .expect("Something went badly wrong");
-        let temp_remove = buf.trim().to_lowercase();
-        // TODO - RESEARCH NEEDED:
-        //        why are t1 and t2 different types here?
-        let t1 = temp_remove.as_str();
-        let t2 = &temp_remove;
-        // match t2 {
-        match t1 {
+        let user_input = buf.trim().to_lowercase();
+        match user_input.as_str() {
             "y" => break true,
             "n" => break false,
             _ => {
@@ -206,38 +216,32 @@ fn user_yn(yes_no_question: &str) -> bool {
     }
 }
 
-fn get_config_from_user(client: &CheckvistClient) -> Result<Config, CliError> {
-    let available_lists: Vec<(u32, String)> = client
-        .get_lists()
-        .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())?;
-
+fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
     println!("Your lists:\n");
-    for (i, list) in available_lists.iter().enumerate() {
+    for (i, list) in lists.iter().enumerate() {
         println!("{}: {}", i + 1, list.1);
     }
     println!("\n");
 
-    // TODO - RESEARCH NEEDED:
-    //        idiomatic way of collecting cmdline input
     let chosen_list = loop {
         println!(
             "\nSelect a list by entering a number between 1 and  {}\n",
-            available_lists.len()
+            lists.len()
         );
         let mut buf = String::new();
-        std::io::stdin().read_line(&mut buf)?;
+        std::io::stdin().read_line(&mut buf).ok()?;
         let chosen_index: usize = match buf.trim().parse() {
             Ok(i) => i,
             Err(_) => {
                 continue;
             }
         };
-        if let Some(list) = available_lists.get(chosen_index - 1) {
+        if let Some(list) = lists.get(chosen_index - 1) {
             break list;
         }
     };
 
-    Ok(Config {
+    Some(Config {
         default_list_id: chosen_list.0,
         default_list_name: chosen_list.1.clone(),
     })

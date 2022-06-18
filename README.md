@@ -27,6 +27,9 @@
             - store these in toml file if yes
             - tell the user where to find the file
           - add task
+      * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
+
+
 
 ## platform issues
 
@@ -69,10 +72,17 @@
 * egui backend? https://github.com/emilk/egui
 * config file library https://github.com/rust-cli/confy
 * config files without a library https://github.com/rust-adventure/lets-code-cli-config
+
 ## commandline UI
+* https://crates.io/crates/tui
+* https://crates.io/crates/cursive
+  (more declarative alternative to tui)
 * https://lunatic.solutions/blog/lunatic-chat/
-  https://github.com/lunatic-solutions/chat implementation, which apparently has changed a lot since the article (because of underlying lunatic changes)
+* https://github.com/lunatic-solutions/chat implementation, which apparently has changed a lot since the article (because of underlying lunatic changes)
   In additiion to the wasm stuff, he uses TUI which might be usefully instructive. Looks difficult though.
+
+## Release / packaging
+* https://wixtoolset.org/
 
 ## Windows VM
 * https://docs.fedoraproject.org/en-US/quick-docs/getting-started-with-virtualization/ 
