@@ -9,44 +9,34 @@
 * Trello-ish interfaces
   + egui (quick / small)
   + React / Chakra 
+
 # Tasks
-* ultra simple (POC) capture-to-task
-  + spec
-    - [x] API client: method & test to push text to a new task in a list
-    - commandline
-      * [x] call API client with text with approx this UI: 
-          `checkvistcli list 
-          `checkvistcli add "text"` , with result:
-          `task "text" successfully added to list [preconfigured list name]`
-      * [X] ~~*first run (no config file).*~~ [2022-06-13]
-          - (just assuming api token for now)
-          - get list of lists (need new api method)
-          - present and offer which list
-          - present to user and ask for default list
-          - offer to save as default
-            - store these in toml file if yes
-            - tell the user where to find the file
-          - add task
-      * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
-
-
-
-## platform issues
-
-  + [X] ~~*get Windows 10 running in a VM*~~ [2022-06-13]
-  * [ ] set up file sharing with the VM
-
-## First run
-
-* [X] ~~*ask for name of list to capture to, & persist in a config file*~~ [2022-06-13] 
-* [ ] add command to change default capture list
-
-## Misc features 
-
-* [ ] capture from stdin
-* [ ] send errors to stderr
-* [ ] capture from clipboard (can this be made all-platform?)
+* [ ] --verbose turns on logging
+* [ ] remove command from `cvcap` - it's all 'add', so have a single command with arguments only
+      ie. now just `cvcap 'text to add' [--choose-list, --from-clipboard, etc]`
+      Needs a bit of clap research
+* [ ] add argument to choose capture list (rather than use default)
+      `cvcap add --choose-list` [ or -l]
+      This offers the same list as during initial setup
+      And then asks whether this should be saved as the new default
+* [ ] capture from clipboard (can this be made all-platform?) `cvcap add --from-clipboard` [or -c]
+* [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
+  * [ ] capture from stdin (eg `cat file | cvcap add`)
+  * [ ] send errors to stderr
+* [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
+    lib - checkvist-api
+    bin - cvcap (and later perhaps cvconv and chrello)
+* [ ] install / deploy
+      * just cargo install, or anything else?
+  * linux
+    * I reckon just a build of the binary is fine for linux users
+    * [ ] windows installer
+      * [ ] set up file sharing with the quickemu VM for testing
+      * [ ] create with wixtools
 * [ ] when saving a new config file, offer to show in file manager (or terminal)?
+* [ ] possibly add a debug mode with error capture 
+* [ ] set up CI (github actions will be fine)
+* [ ] man pages
 
 * make cli OS-friendly
   + https://rust-cli.github.io/book/index.html

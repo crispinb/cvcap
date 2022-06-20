@@ -153,6 +153,7 @@ dependencies = [
  "clap",
  "directories",
  "env_logger",
+ "log",
  "mockito",
  "serde",
  "serde_json",

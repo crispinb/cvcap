@@ -3,6 +3,7 @@ use anyhow::{anyhow, Context, Error, Result};
 use clap::{Args, Command, Parser, Subcommand};
 use cvcap::{Checklist, CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
+use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::fmt::Display;
@@ -33,13 +34,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    List {
-        // name: String,
-        list_id: i16,
-    },
-    Add {
-        content: String,
-    },
+    Add { content: String },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -55,7 +50,6 @@ fn main() -> Result<()> {
     let client = CheckvistClient::new("https://checkvist.com/".into(), token);
 
     match cli.command {
-        Commands::List { list_id } => todo!(),
         Commands::Add { content } => {
             let config = if let Some(config) = get_config_from_file() {
                 config
@@ -82,7 +76,9 @@ fn main() -> Result<()> {
                 position: 1,
             };
 
-            let returned_task = client.add_task(config.default_list_id, task).context("Couldn't add task to list using Checkvist API")?;
+            let returned_task = client
+                .add_task(config.default_list_id, task)
+                .context("Couldn't add task to list using Checkvist API")?;
             println!(
                 r#"Added task "{}" to list "{}""#,
                 returned_task.content, config.default_list_name
@@ -105,7 +101,10 @@ fn api_token() -> Result<String> {
 
 fn get_config_from_file() -> Option<Config> {
     let config_file = fs::read_to_string(config_file_path()).ok()?;
-    let config = toml::from_str(&config_file).ok()?;
+    let config = toml::from_str(&config_file).ok().or_else(|| {
+        warn!("Failed to parse config file at path {:?}. Continuing without", config_file_path());
+        None
+    })?;
     Some(config)
 }
 
@@ -149,7 +148,7 @@ fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
             lists.len()
         );
         let mut buf = String::new();
-        std::io::stdin().read_line(&mut buf).ok()?;
+        std::io::stdin().read_line(&mut buf).ok().or_else(|| {warn!("Couldn't get user input for unknown reason"); None})?;
         let chosen_index: usize = match buf.trim().parse() {
             Ok(i) => i,
             Err(_) => {
@@ -169,7 +168,9 @@ fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
 
 fn create_new_config_file(config: &Config) -> Result<()> {
     let config_path = config_file_path();
-    let config_dir = config_path.parent().expect("Couldn't construct config path");
+    let config_dir = config_path
+        .parent()
+        .expect("Couldn't construct config path");
     if !config_dir.is_dir() {
         create_dir(config_dir)?;
     }
