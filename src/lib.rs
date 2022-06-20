@@ -1,16 +1,15 @@
-#![allow(dead_code)]
 use core::fmt;
 use std::vec;
 
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-// If we don't need PartialEq other than for tests, we can conditionally compile attribute for tests only https://doc.rust-lang.org/reference/conditional-compilation.html.
+// TODO: If we don't need PartialEq other than for tests, conditionally compile attribute for tests only https://doc.rust-lang.org/reference/conditional-compilation.html.
 #[derive(PartialEq, Debug, Deserialize, Serialize)]
 pub struct Checklist {
     pub id: u32,
     pub name: String,
-    // TODO: automatically convert to a date type of some sort
+    // TODO: automatically convert to a date type of some sort when needed
     pub updated_at: String,
     pub task_count: u16,
 }
@@ -63,15 +62,6 @@ impl From<std::io::Error> for CheckvistError {
     }
 }
 
-// TODO: decide if this is needed (if so would hold a ref to a ureq Agent)
-#[derive(Debug)]
-struct HttpClient {}
-impl HttpClient {
-    pub fn new() -> HttpClient {
-        HttpClient {}
-    }
-}
-
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 enum ApiResponse<T> {
@@ -99,9 +89,6 @@ enum ApiResponse<T> {
 
 #[derive(Debug)]
 pub struct CheckvistClient {
-    // TODO: decide if need this (eg if library were to be used persistently in a server?)
-    // I think ureq requires an agent for middleware
-    client: HttpClient,
     base_url: Url,
     api_token: String,
 }
@@ -109,7 +96,6 @@ pub struct CheckvistClient {
 impl CheckvistClient {
     pub fn new(base_url: String, api_token: String) -> Self {
         Self {
-            client: HttpClient::new(),
             base_url: Url::parse(&base_url).expect("Bad base url supplied"),
             api_token,
         }
@@ -184,7 +170,8 @@ impl CheckvistClient {
         }
     }
 
-    // TODO - REFACTOR: switch all str use in paths to PathBuf and &Path
+    // TODO - RESEARCH NEEDED: 
+    //        wanted to replace Vec<&str> with Vec<std::path::Path>, but get type error
     fn build_endpoint(&self, segments: Vec<&str>) -> Url {
         self.base_url
             .join(&segments.concat())
