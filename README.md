@@ -11,14 +11,14 @@
   + React / Chakra 
 
 # Tasks
-* [ ] --verbose turns on logging
-* [ ] remove command from `cvcap` - it's all 'add', so have a single command with arguments only
+* [X] ~~*remove command from `cvcap` - it's all 'add', so have a single command with arguments only*~~ [2022-06-21]
       ie. now just `cvcap 'text to add' [--choose-list, --from-clipboard, etc]`
       Needs a bit of clap research
 * [ ] add argument to choose capture list (rather than use default)
       `cvcap add --choose-list` [ or -l]
       This offers the same list as during initial setup
       And then asks whether this should be saved as the new default
+* [ ] --verbose turns on logging (ie. gets env_logger to log, regardless of env vars)
 * [ ] capture from clipboard (can this be made all-platform?) `cvcap add --from-clipboard` [or -c]
 * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
   * [ ] capture from stdin (eg `cat file | cvcap add`)

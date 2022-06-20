@@ -11,6 +11,13 @@ use std::fs::{create_dir, File};
 use std::path::PathBuf;
 use std::{env, fs};
 
+// Logging.
+// Convention: reserve trace and debug levels for called crates (eg. checkvist api)
+// Levels used in executable:
+// - error: any recoverable error (eg. inability to parse config toml: can recover by overwriting)
+// - warn: non-error potential problems
+// - info: transient info for debugging
+
 static CONFIG_FILE_NAME: &str = "cvcap.toml";
 // TODO: get/create version during build
 static VERSION: &str = "0.1";
@@ -28,13 +35,15 @@ const BANNER: &str = r"
 #[clap(about = "A minimal Checkvist (https://checkvist.com) capture tool ")]
 #[clap(version = VERSION)]
 struct Cli {
-    #[clap(subcommand)]
-    command: Commands,
-}
-
-#[derive(Debug, Subcommand)]
-enum Commands {
-    Add { content: String },
+    /// The task you wish to add
+    #[clap(name="task")]
+    task_content: String,
+    /// Add task to a different list (ie. other than your default list)
+    #[clap(short='l', long)]
+    pick_list: bool,
+    /// Add task from text on clipboard
+    #[clap(short='c', long)]
+    from_clipboard: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,42 +58,44 @@ fn main() -> Result<()> {
     let token = api_token()?;
     let client = CheckvistClient::new("https://checkvist.com/".into(), token);
 
-    match cli.command {
-        Commands::Add { content } => {
-            let config = if let Some(config) = get_config_from_file() {
-                config
-            } else {
-                let available_lists: Vec<(u32, String)> = client
-                    .get_lists()
-                    .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
-                    .context("Could not retrieve lists from Checkvist API")?;
-
-                if let Some(config) = get_config_from_user(available_lists) {
-                    if user_yn("Do you want to add your list as the default to a new config file?")
-                    {
-                        create_new_config_file(&config).context("Couldn't create config file")?;
-                    };
-                    config
-                } else {
-                    return Err(anyhow!("Could not collect config info from user"));
-                }
-            };
-
-            let task = Task {
-                id: None,
-                content,
-                position: 1,
-            };
-
-            let returned_task = client
-                .add_task(config.default_list_id, task)
-                .context("Couldn't add task to list using Checkvist API")?;
-            println!(
-                r#"Added task "{}" to list "{}""#,
-                returned_task.content, config.default_list_name
-            );
-        }
+    if cli.pick_list {
+        todo!("so you want a new list?");
     }
+    if cli.from_clipboard {
+        todo!("get text from clipboard");
+    }
+
+    let config = if let Some(config) = get_config_from_file() {
+        config
+    } else {
+        let available_lists: Vec<(u32, String)> = client
+            .get_lists()
+            .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
+            .context("Could not retrieve lists from Checkvist API")?;
+
+        if let Some(config) = get_config_from_user(available_lists) {
+            if user_yn("Do you want to add your list as the default to a new config file?") {
+                create_new_config_file(&config).context("Couldn't create config file")?;
+            };
+            config
+        } else {
+            return Err(anyhow!("Could not collect config info from user"));
+        }
+    };
+
+    let task = Task {
+        id: None,
+        content: cli.task_content,
+        position: 1,
+    };
+
+    let returned_task = client
+        .add_task(config.default_list_id, task)
+        .context("Couldn't add task to list using Checkvist API")?;
+    println!(
+        r#"Added task "{}" to list "{}""#,
+        returned_task.content, config.default_list_name
+    );
 
     Ok(())
 }
@@ -102,7 +113,10 @@ fn api_token() -> Result<String> {
 fn get_config_from_file() -> Option<Config> {
     let config_file = fs::read_to_string(config_file_path()).ok()?;
     let config = toml::from_str(&config_file).ok().or_else(|| {
-        warn!("Failed to parse config file at path {:?}. Continuing without", config_file_path());
+        error!(
+            "Failed to parse config file at path {:?}. Continuing without",
+            config_file_path()
+        );
         None
     })?;
     Some(config)
@@ -148,7 +162,10 @@ fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
             lists.len()
         );
         let mut buf = String::new();
-        std::io::stdin().read_line(&mut buf).ok().or_else(|| {warn!("Couldn't get user input for unknown reason"); None})?;
+        std::io::stdin().read_line(&mut buf).ok().or_else(|| {
+            warn!("Couldn't get user input for unknown reason");
+            None
+        })?;
         let chosen_index: usize = match buf.trim().parse() {
             Ok(i) => i,
             Err(_) => {
