@@ -1,10 +1,9 @@
 #![allow(unused_imports, unused_variables)]
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use clap::{Args, Command, Parser, Subcommand};
 use cvcap::{Checklist, CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fs::{create_dir, File};
@@ -43,83 +42,16 @@ enum Commands {
     },
 }
 
-// TODO - RESEARCH NEEDED:
-//        Variants per external error type are ridiculous.
-//        What I want is a type with a Box dyn inner error, but
-//        this always results in compile errors for Display ( to do
-// with displaying an unsized box value)
-#[derive(Debug)]
-
-// TODO - REFACTOR: replace with anyhow?
-enum CliError {
-    Error { message: String },
-    IOError(std::io::Error),
-    TomlDeserialisationError(toml::de::Error),
-    TomlSerialisationError(toml::ser::Error),
-    CheckvistError(CheckvistError),
-}
-
-impl Display for CliError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CliError::Error { message } => write!(f, "{}", message),
-            // TODO: fix this when I have a solution to the inner error issue
-            _ => write!(f, "TBD"),
-        }
-    }
-}
-
-impl Error for CliError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            CliError::Error { message: _message } => None,
-            CliError::IOError(err) => Some(err),
-            CliError::TomlDeserialisationError(err) => Some(err),
-            CliError::TomlSerialisationError(err) => Some(err),
-            CliError::CheckvistError(err) => Some(err),
-        }
-    }
-}
-
-impl From<std::io::Error> for CliError {
-    fn from(err: std::io::Error) -> Self {
-        CliError::IOError(err)
-    }
-}
-
-impl From<toml::de::Error> for CliError {
-    fn from(err: toml::de::Error) -> Self {
-        CliError::TomlDeserialisationError(err)
-    }
-}
-
-impl From<toml::ser::Error> for CliError {
-    fn from(err: toml::ser::Error) -> Self {
-        CliError::TomlSerialisationError(err)
-    }
-}
-
-impl From<CheckvistError> for CliError {
-    fn from(err: CheckvistError) -> Self {
-        CliError::CheckvistError(err)
-    }
-}
-
 #[derive(Serialize, Deserialize, Debug)]
 struct Config {
     default_list_id: u32,
     default_list_name: String,
 }
 
-fn main() -> Result<(), CliError> {
+fn main() -> Result<()> {
     env_logger::init();
     let cli = Cli::parse();
-
-    let token = match api_token() {
-        Ok(value) => value,
-        Err(value) => return value,
-    };
-
+    let token = api_token()?;
     let client = CheckvistClient::new("https://checkvist.com/".into(), token);
 
     match cli.command {
@@ -130,18 +62,17 @@ fn main() -> Result<(), CliError> {
             } else {
                 let available_lists: Vec<(u32, String)> = client
                     .get_lists()
-                    .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())?;
+                    .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
+                    .context("Could not retrieve lists from Checkvist API")?;
 
                 if let Some(config) = get_config_from_user(available_lists) {
                     if user_yn("Do you want to add your list as the default to a new config file?")
                     {
-                        create_new_config_file(&config)?;
+                        create_new_config_file(&config).context("Couldn't create config file")?;
                     };
                     config
                 } else {
-                    return Err(CliError::Error {
-                        message: "Cannot get config from either config file or from user".into(),
-                    });
+                    return Err(anyhow!("Could not collect config info from user"));
                 }
             };
 
@@ -151,14 +82,10 @@ fn main() -> Result<(), CliError> {
                 position: 1,
             };
 
-            let success_message = match client.add_task(config.default_list_id, task) {
-                Ok(returned_task) => returned_task.content,
-                Err(err) => return Err(CliError::CheckvistError(err)),
-            };
-
+            let returned_task = client.add_task(config.default_list_id, task).context("Couldn't add task to list using Checkvist API")?;
             println!(
                 r#"Added task "{}" to list "{}""#,
-                success_message, config.default_list_name
+                returned_task.content, config.default_list_name
             );
         }
     }
@@ -169,17 +96,10 @@ fn main() -> Result<(), CliError> {
 // TODO - RESEARCH NEEDED:
 //        - how to capture and where to store token
 const TOKEN_KEY: &str = "CHECKVIST_API_TOKEN";
-fn api_token() -> Result<String, Result<(), CliError>> {
+fn api_token() -> Result<String> {
     let key: &OsStr = OsStr::new(TOKEN_KEY);
     let need_token_msg: String = format!("you must set the {:?} environment variable", key);
-    let token = match env::var(key) {
-        Ok(token) => token,
-        Err(err) => {
-            return Err(Err(CliError::Error {
-                message: "Can't get token from environment".into(),
-            }))
-        }
-    };
+    let token = env::var(key).context(need_token_msg)?;
     Ok(token)
 }
 
@@ -247,11 +167,9 @@ fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
     })
 }
 
-fn create_new_config_file(config: &Config) -> Result<(), CliError> {
+fn create_new_config_file(config: &Config) -> Result<()> {
     let config_path = config_file_path();
-    let config_dir = config_path.parent().ok_or(CliError::Error {
-        message: "Can't find a config directory".into(),
-    })?;
+    let config_dir = config_path.parent().expect("Couldn't construct config path");
     if !config_dir.is_dir() {
         create_dir(config_dir)?;
     }
