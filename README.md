@@ -18,12 +18,17 @@
       `cvcap add --choose-list` [ or -l]
       This offers the same list as during initial setup
       And then asks whether this should be saved as the new default
+
 * AUTH
   * [ ] get and store auth token on first run
     will need to ask user for email and Open API key (available from https://checkvist.com/auth/profile)
   * [ ] retrieve auth token when available
   * [ ] refresh auth token when refuesed
   * [ ] re-get auth token when token refreesh fails
+  * [ ] add support for 2fa key (https://checkvist.com/auth/api#task_data)
+
+* [ ] add main error handling / reporting
+  - use fn main ONLY To call a command function, then report on its errors (perhaps also display help)
 * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
   * [ ] capture from stdin (eg `cat file | cvcap add`)
   * [ ] send errors to stderr

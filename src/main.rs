@@ -3,8 +3,13 @@ use anyhow::{anyhow, Context, Error, Result};
 use clap::Parser;
 use cvcap::{Checklist, CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
+use keyring::{
+    credential::{LinuxCredential, PlatformCredential},
+    Entry,
+};
 use log::{debug, error, info, trace, warn};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fs::{create_dir, File};
@@ -57,8 +62,14 @@ struct Config {
 fn main() -> Result<()> {
     env_logger::init();
     let cli = Cli::parse();
-    let token = api_token()?;
+    let token = get_api_token()?;
+
     let client = CheckvistClient::new("https://checkvist.com/".into(), token);
+
+    // TODO: how to make a wrapper that does a token refresh (& if that fails gets
+    //  a new token) automatically when auth fails
+    // HOF (takes a function and responds to errors with a token refresh & recall?
+    //   Struct? With methods to get token that retry automatically?
 
     let config = match (get_config_from_file(), cli.pick_list) {
         (_, true) | (None, false) => {
@@ -106,14 +117,36 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-// TODO - RESEARCH NEEDED:
-//        - how to capture and where to store token
-const TOKEN_KEY: &str = "CHECKVIST_API_TOKEN";
-fn api_token() -> Result<String> {
-    let key: &OsStr = OsStr::new(TOKEN_KEY);
-    let need_token_msg: String = format!("you must set the {:?} environment variable", key);
-    let token = env::var(key).context(need_token_msg)?;
-    Ok(token)
+/// Gets Checkvist API token (see https://checkvist.com/auth/api#task_data)
+/// - first attempts from local machine keyring
+/// - if not available, then asks user for username/pw & gets from checkvist API, storing on keyring)
+// TAG - decision:  use OS username as key to store creds (rather than the more obvious Checkvist username)
+//     - rationale: to retrieve api token without always prompting user, we need quick access to a key
+//                  for the creds (keyring crate's 'username'). We can only get the checkvist
+//                  username from the user. We could then store it in the config, but seems like
+//                  an unnecessary step.
+// TODO: check/extend for Windows & MacOS
+const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
+fn get_api_token() -> Result<String> {
+    // retrieve checkvist username and password from keyring if exists
+    let os_username = whoami::username();
+    let checkvist_api_token = match Entry::new(KEYCHAIN_SERVICE_NAME, &os_username).get_password() {
+        Ok(password) => password,
+        Err(_) => {
+            // get token from Checkvist API
+            let token = CheckvistClient::get_token(
+                "https://checkvist.com/".into(),
+                get_user_input("Username:", "Please enter your username <add details>")?,
+                get_user_input("remote key TBD more info", "do it")?,
+            )?;
+            // Entry does not exist; create it
+            let entry = Entry::new(KEYCHAIN_SERVICE_NAME, &os_username);
+            entry.set_password(&token)?;
+            token
+        }
+    };
+
+    Ok(checkvist_api_token)
 }
 
 fn get_config_from_file() -> Option<Config> {
@@ -135,26 +168,6 @@ fn config_file_path() -> PathBuf {
         .join(CONFIG_FILE_NAME)
 }
 
-fn user_yn(yes_no_question: &str) -> bool {
-    println!("{} [Y/N]?", yes_no_question);
-
-    loop {
-        let mut buf = String::new();
-        std::io::stdin()
-            .read_line(&mut buf)
-            .expect("Something went badly wrong");
-        let user_input = buf.trim().to_lowercase();
-        match user_input.as_str() {
-            "y" => break true,
-            "n" => break false,
-            _ => {
-                println!("Please answer Y/y or N/n");
-                continue;
-            }
-        }
-    }
-}
-
 fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
     println!("Your lists:\n");
     for (i, list) in lists.iter().enumerate() {
@@ -163,21 +176,14 @@ fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
     println!("\n");
 
     let chosen_list = loop {
-        println!(
-            "\nSelect a list by entering a number between 1 and  {}\n",
-            lists.len()
-        );
-        let mut buf = String::new();
-        std::io::stdin().read_line(&mut buf).ok().or_else(|| {
-            warn!("Couldn't get user input for unknown reason");
-            None
-        })?;
-        let chosen_index: usize = match buf.trim().parse() {
-            Ok(i) => i,
-            Err(_) => {
-                continue;
-            }
-        };
+        let chosen_index: usize = get_user_input(
+            &format!(
+                "\nSelect a list by entering a number between 1 and  {}\n",
+                lists.len()
+            ),
+            "",
+        )
+        .unwrap();
         if let Some(list) = lists.get(chosen_index - 1) {
             break list;
         }
@@ -202,4 +208,51 @@ fn create_new_config_file(config: &Config) -> Result<()> {
     let file = File::create(config_file_path())?;
     std::fs::write(config_file_path(), json)?;
     Ok(())
+}
+
+/// Get user input, returning any type that can be converted
+/// from a string.
+/// Cycles supplied prompts until input is successful
+/// or an error is returned
+// TODO - RESEARCH NEEDED: 
+//      - add a validator (closure presumably but on quick attempt I got in a mess with types)
+fn get_user_input<T: std::str::FromStr>(prompt: &str, correction: &str) -> Result<T> {
+    let user_input = loop {
+        println!("{}", prompt);
+        let mut buf = String::new();
+        std::io::stdin().read_line(&mut buf).map_err(|err| {
+            warn!("Couldn't get user input from stdin");
+            err
+        })?;
+
+        match buf.trim().parse() {
+            Ok(i) => break i,
+            Err(_) => {
+                println!("{}", correction);
+                continue;
+            }
+        };
+    };
+
+    Ok(user_input)
+}
+
+fn user_yn(yes_no_question: &str) -> bool {
+    println!("{} [Y/N]?", yes_no_question);
+
+    loop {
+        let mut buf = String::new();
+        std::io::stdin()
+            .read_line(&mut buf)
+            .expect("Something went badly wrong");
+        let user_input = buf.trim().to_lowercase();
+        match user_input.as_str() {
+            "y" => break true,
+            "n" => break false,
+            _ => {
+                println!("Please answer Y/y or N/n");
+                continue;
+            }
+        }
+    }
 }
