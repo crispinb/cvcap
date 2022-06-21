@@ -11,6 +11,25 @@ fn client_creation_should_panic_with_invalid_url() {
 }
 
 #[test]
+fn get_auth_token() {
+    let token = "test token";
+    let username = "user@test.com";
+    let remote_key = "anything";
+    let send_body = serde_json::to_value(HashMap::from([("remote_key", remote_key), ("username", username)])).unwrap();
+    let return_body = serde_json::to_string(&HashMap::from([("token", token)])).unwrap();
+    let mock =  mock("POST", "/auth/login.json?version=2")
+        .match_body(Matcher::Json(send_body))
+        .with_body(return_body)
+        .create();
+
+    let returned_token = CheckvistClient::get_token(mockito::server_url(), username.into(), remote_key.into()).unwrap();
+
+
+    mock.assert();
+    assert_eq!(token, returned_token);
+}
+
+#[test]
 // Checkvist api generates errors as 200 JSON responses with {message: <error message>}
 fn authentication_failure_results_in_api_json_error() {
     let auth_err_msg = "Unauthenticated: no valid authentication data in request";
@@ -90,11 +109,11 @@ fn get_list() {
 
 #[test]
 fn get_tasks() {
-    let tasks = vec!(Task {
+    let tasks = vec![Task {
         id: Some(1),
         position: 1,
         content: "content".to_string(),
-    });
+    }];
     let task_json = serde_json::to_string(&tasks).unwrap();
     let mock = new_mock_get("/checklists/1/tasks.json", task_json);
 
@@ -112,9 +131,9 @@ fn add_task() {
         position: 1,
         content: "some text".into(),
     };
-    let body = serde_json::to_string(&task).unwrap();
-    let body_json = serde_json::to_value(task.clone()).unwrap();
-    let mock = new_mock_post("/checklists/1/tasks.json", body_json, body);
+    let return_body = serde_json::to_string(&task).unwrap();
+    let send_body = serde_json::to_value(task.clone()).unwrap();
+    let mock = new_mock_post("/checklists/1/tasks.json", send_body, return_body);
 
     let client = CheckvistClient::new(mockito::server_url(), "token".into());
     let returned_task = client.add_task(1, task.clone()).unwrap();

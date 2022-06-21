@@ -1,6 +1,6 @@
 #![allow(unused_imports, unused_variables)]
 use anyhow::{anyhow, Context, Error, Result};
-use clap::{Args, Command, Parser, Subcommand};
+use clap::Parser;
 use cvcap::{Checklist, CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
 use log::{debug, error, info, trace, warn};
@@ -35,13 +35,13 @@ const BANNER: &str = r"
 #[clap(about = "A minimal Checkvist (https://checkvist.com) capture tool ")]
 #[clap(version = VERSION)]
 struct Cli {
-    /// The task you wish to add
-    #[clap(name = "task")]
+    /// The task you wish to add to your default list (you'll be prompted if there isn't one yet)
+    #[clap(name = "task text")]
     task_content: String,
-    /// Add task to a different list (ie. other than your default list)
+    /// Choose list to add task to (ie. other than your default list)
     #[clap(short = 'l', long)]
     pick_list: bool,
-    /// Add task from text on clipboard
+    /// Use text from clipboard instead of command line argument
     #[clap(short = 'c', long)]
     from_clipboard: bool,
 }

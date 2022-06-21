@@ -14,18 +14,25 @@
 * [X] ~~*remove command from `cvcap` - it's all 'add', so have a single command with arguments only*~~ [2022-06-21]
       ie. now just `cvcap 'text to add' [--choose-list, --from-clipboard, etc]`
       Needs a bit of clap research
-* [ ] add argument to choose capture list (rather than use default)
+* [X] ~~*add argument to choose capture list (rather than use default)*~~ [2022-06-21]
       `cvcap add --choose-list` [ or -l]
       This offers the same list as during initial setup
       And then asks whether this should be saved as the new default
-* [ ] --verbose turns on logging (ie. gets env_logger to log, regardless of env vars)
-* [ ] capture from clipboard (can this be made all-platform?) `cvcap add --from-clipboard` [or -c]
+* AUTH
+  * [ ] get and store auth token on first run
+    will need to ask user for email and Open API key (available from https://checkvist.com/auth/profile)
+  * [ ] retrieve auth token when available
+  * [ ] refresh auth token when refuesed
+  * [ ] re-get auth token when token refreesh fails
 * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
   * [ ] capture from stdin (eg `cat file | cvcap add`)
   * [ ] send errors to stderr
+* [ ] capture from clipboard (can this be made all-platform?) `cvcap add --from-clipboard` [or -c]
+  - how to turn off main 'task' content requirement (which would conflict with the clipboard content)?
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
     lib - checkvist-api
     bin - cvcap (and later perhaps cvconv and chrello)
+    NB - remember the 2 will need different deps
 * [ ] install / deploy
       * just cargo install, or anything else?
   * linux
@@ -33,25 +40,12 @@
     * [ ] windows installer
       * [ ] set up file sharing with the quickemu VM for testing
       * [ ] create with wixtools
-* [ ] when saving a new config file, offer to show in file manager (or terminal)?
-* [ ] possibly add a debug mode with error capture 
 * [ ] set up CI (github actions will be fine)
+* [ ] --verbose turns on logging (ie. gets env_logger to log, regardless of env vars)
 * [ ] man pages
+* [ ] when saving a new config file, offer to show in file manager (or terminal)?
 
-* make cli OS-friendly
-  + https://rust-cli.github.io/book/index.html
-      * [ ] replace "text" with stdin
-* how to deal with auth on first run?
-  - where to put the api token when retrieved?
-    - possible crates
-        - https://crates.io/crates/keyring     
-          This looks good - widely downloaded, and surely the best place?
-        - I might somehow add 1password for my own use (and as an alternative for other users)
-          There are some wrappers: https://crates.io/search?q=1password
-  + handle secrets https://crates.io/crates/secrecy for the token (wrapper type to avoid exposing during logging etc))
 
-# Research Required
-* how to create a daemon process similar to docker cli's, that doesn't need a service installation?
 
 # Resources
 * [Checkvist API](https://checkvist.com/auth/api)
@@ -63,7 +57,15 @@
 * config file library https://github.com/rust-cli/confy
 * config files without a library https://github.com/rust-adventure/lets-code-cli-config
 
+## secrets / security
+* https://crates.io/crates/keyring     
+* https://crates.io/crates/secrecy
+* https://crates.io/search?q=1password
+
+
+
 ## commandline UI
++ https://rust-cli.github.io/book/index.html
 * https://crates.io/crates/tui
 * https://crates.io/crates/cursive
   (more declarative alternative to tui)

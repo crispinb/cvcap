@@ -101,8 +101,31 @@ impl CheckvistClient {
         }
     }
 
+    pub fn get_token(
+        base_url: String,
+        username: String,
+        remote_key: String,
+    ) -> Result<String, CheckvistError> {
+        // struct seems a bit overwrought here, but it turns out simpler
+        // than messing with serde_json::Value (see https://play.rust-lang.org/?gist=9e64149fe110c686619185a783e78fcc&version=nightly)
+        #[derive(Deserialize)]
+        struct ApiToken {
+            token: String,
+        }
+        let url = CheckvistClient::build_endpoint(
+            &Url::parse(&base_url).expect("Bad base URL supplied"),
+            vec!["/auth/login.json?version=2"],
+        );
+
+        let response: ApiToken = ureq::post(url.as_str())
+            .send_json(ureq::json!({"username": username, "remote_key": remote_key}))?
+            .into_json()?;
+
+        Ok(response.token)
+    }
+
     pub fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
-        let url = self.build_endpoint(vec!["/checklists.json"]);
+        let url = CheckvistClient::build_endpoint(&self.base_url, vec!["/checklists.json"]);
 
         let response: ApiResponse<Checklist> = ureq::get(url.as_str())
             .set("X-Client-Token", &self.api_token)
@@ -113,7 +136,10 @@ impl CheckvistClient {
     }
 
     pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
-        let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), ".json"]);
+        let url = CheckvistClient::build_endpoint(
+            &self.base_url,
+            vec!["/checklists/", &list_id.to_string(), ".json"],
+        );
 
         let response: ApiResponse<Checklist> = ureq::get(url.as_str())
             .set("X-Client-token", &self.api_token)
@@ -124,7 +150,10 @@ impl CheckvistClient {
     }
 
     pub fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> {
-        let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), "/tasks.json"]);
+        let url = CheckvistClient::build_endpoint(
+            &self.base_url,
+            vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
+        );
 
         let response: ApiResponse<Task> = ureq::get(url.as_str())
             .set("X-Client-token", &self.api_token)
@@ -135,7 +164,10 @@ impl CheckvistClient {
     }
 
     pub fn add_task(&self, list_id: u32, task: Task) -> Result<Task, CheckvistError> {
-        let url = self.build_endpoint(vec!["/checklists/", &list_id.to_string(), "/tasks.json"]);
+        let url = CheckvistClient::build_endpoint(
+            &self.base_url,
+            vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
+        );
 
         let response: ApiResponse<Task> = ureq::post(url.as_str())
             .set("X-Client-Token", &self.api_token)
@@ -143,6 +175,8 @@ impl CheckvistClient {
             .into_json()?;
         self.to_result(response)
     }
+
+    // Utility Methods
 
     // TODO - RESEARCH NEEDED:
     //        how to merge with to_result?
@@ -170,10 +204,12 @@ impl CheckvistClient {
         }
     }
 
-    // TODO - RESEARCH NEEDED: 
+    // Utility Functions
+
+    // TODO - RESEARCH NEEDED:
     //        wanted to replace Vec<&str> with Vec<std::path::Path>, but get type error
-    fn build_endpoint(&self, segments: Vec<&str>) -> Url {
-        self.base_url
+    fn build_endpoint(base_url: &Url, segments: Vec<&str>) -> Url {
+        base_url
             .join(&segments.concat())
             .expect("Error building endpoing (shouldn't happen as base_url is known good")
     }
