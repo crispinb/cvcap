@@ -36,20 +36,22 @@ const BANNER: &str = r"
 #[clap(version = VERSION)]
 struct Cli {
     /// The task you wish to add
-    #[clap(name="task")]
+    #[clap(name = "task")]
     task_content: String,
     /// Add task to a different list (ie. other than your default list)
-    #[clap(short='l', long)]
+    #[clap(short = 'l', long)]
     pick_list: bool,
     /// Add task from text on clipboard
-    #[clap(short='c', long)]
+    #[clap(short = 'c', long)]
     from_clipboard: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Config {
-    default_list_id: u32,
-    default_list_name: String,
+    #[serde(rename = "default_list_id")]
+    list_id: u32,
+    #[serde(rename = "default_list_name")]
+    list_name: String,
 }
 
 fn main() -> Result<()> {
@@ -58,30 +60,34 @@ fn main() -> Result<()> {
     let token = api_token()?;
     let client = CheckvistClient::new("https://checkvist.com/".into(), token);
 
-    if cli.pick_list {
-        todo!("so you want a new list?");
-    }
+    let config = match (get_config_from_file(), cli.pick_list) {
+        (_, true) | (None, false) => {
+            let available_lists: Vec<(u32, String)> = client
+                .get_lists()
+                .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
+                .context("Could not get lists from Checkvist API")?;
+
+            if let Some(user_config) = get_config_from_user(available_lists) {
+                if user_yn(&format!(
+                    "Do you want to save {} as your new default list?",
+                    user_config.list_name
+                )) {
+                    create_new_config_file(&user_config).context("Couldn't save config file")?;
+                };
+                user_config
+            } else {
+                return Err(anyhow!("Could not collect config info from user"));
+            }
+        }
+        (Some(file_config), false) => file_config,
+    };
+
+    // TODO - RESEARCH NEEDED:
+    //        how to make task-content positional arg optional with
+    //        this flag set?
     if cli.from_clipboard {
         todo!("get text from clipboard");
     }
-
-    let config = if let Some(config) = get_config_from_file() {
-        config
-    } else {
-        let available_lists: Vec<(u32, String)> = client
-            .get_lists()
-            .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
-            .context("Could not retrieve lists from Checkvist API")?;
-
-        if let Some(config) = get_config_from_user(available_lists) {
-            if user_yn("Do you want to add your list as the default to a new config file?") {
-                create_new_config_file(&config).context("Couldn't create config file")?;
-            };
-            config
-        } else {
-            return Err(anyhow!("Could not collect config info from user"));
-        }
-    };
 
     let task = Task {
         id: None,
@@ -90,11 +96,11 @@ fn main() -> Result<()> {
     };
 
     let returned_task = client
-        .add_task(config.default_list_id, task)
+        .add_task(config.list_id, task)
         .context("Couldn't add task to list using Checkvist API")?;
     println!(
         r#"Added task "{}" to list "{}""#,
-        returned_task.content, config.default_list_name
+        returned_task.content, config.list_name
     );
 
     Ok(())
@@ -178,8 +184,8 @@ fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
     };
 
     Some(Config {
-        default_list_id: chosen_list.0,
-        default_list_name: chosen_list.1.clone(),
+        list_id: chosen_list.0,
+        list_name: chosen_list.1.clone(),
     })
 }
 
