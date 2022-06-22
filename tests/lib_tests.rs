@@ -30,22 +30,28 @@ fn get_auth_token() {
 }
 
 #[test]
-// Checkvist api generates errors as 200 JSON responses with {message: <error message>}
+// Checkvist api generates errors as 401 JSON responses with {message: <error message>}
+// we can't usefully check the returned body as mockito uses its own body for 401's
 fn authentication_failure_results_in_api_json_error() {
-    let auth_err_msg = "Unauthenticated: no valid authentication data in request";
-    let error = HashMap::from([("message", auth_err_msg)]);
-    let error_json = serde_json::to_string(&error).unwrap();
-    let mock = new_mock_get("/checklists/1.json", error_json);
+    let mock = mock("GET", "/checklists/1.json")
+        .match_header("X-Client-Token", "token")
+        .with_status(401) 
+        .create();
 
     let client = CheckvistClient::new(mockito::server_url(), "token".to_string());
     let result = client.get_list(1).unwrap_err();
 
     mock.assert();
-    let returned_err_msg = match result {
-        CheckvistError::UnknownError { message } => message,
-        _ => String::new(),
-    };
-    assert_eq!(auth_err_msg, returned_err_msg);
+    let returned_error = if let CheckvistError::NetworkError(err) = result {
+        Some(err)
+    } else {
+        None
+    
+    }.unwrap();
+
+    // this is ureq's err for a non-200 status code
+    assert_eq!(ureq::ErrorKind::HTTP, returned_error.kind());
+    assert_eq!(401, returned_error.into_response().unwrap().status());
 }
 
 #[test]

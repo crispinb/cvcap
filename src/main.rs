@@ -71,6 +71,11 @@ fn main() -> Result<()> {
     // HOF (takes a function and responds to errors with a token refresh & recall?
     //   Struct? With methods to get token that retry automatically?
 
+    // or put the below in a function. If we get a ureq::Error::ErrorKind::HTTP 
+    // (can we check for a 401 more specifically?), do a token refresh and then re-login if necessary, then
+    // call the function again with the stage we've got to
+    // The called functions can return a struct wiht info on the state-so-far?
+    
     let config = match (get_config_from_file(), cli.pick_list) {
         (_, true) | (None, false) => {
             let available_lists: Vec<(u32, String)> = client
