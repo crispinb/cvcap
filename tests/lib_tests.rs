@@ -15,15 +15,15 @@ fn get_auth_token() {
     let token = "test token";
     let username = "user@test.com";
     let remote_key = "anything";
-    let send_body = serde_json::to_value(HashMap::from([
+    let request_body = serde_json::to_value(HashMap::from([
         ("remote_key", remote_key),
         ("username", username),
     ]))
     .unwrap();
-    let return_body = serde_json::to_string(&HashMap::from([("token", token)])).unwrap();
+    let response_body = serde_json::to_string(&HashMap::from([("token", token)])).unwrap();
     let mock = mock("POST", "/auth/login.json?version=2")
-        .match_body(Matcher::Json(send_body))
-        .with_body(return_body)
+        .match_body(Matcher::Json(request_body))
+        .with_body(response_body)
         .create();
 
     let returned_token =
@@ -33,6 +33,14 @@ fn get_auth_token() {
     mock.assert();
     assert_eq!(token, returned_token);
 }
+
+// #[test]
+// // curl --json '{"old_token": "vmL37YOYhaIRw7El5iuS0OF9WQEqD7"}'  "https://checkvist.com/auth/refresh_token.json?version=2"
+// fn refresh_auth_token() {
+//     let request_body = serde_json::to_value(HashMap::from([("old_token", "test token")])).unwrap();
+//     let response_body = serde_json::to_value(HashMap::from([("old_token", "test token")])).unwrap();
+
+// }
 
 #[test]
 // Checkvist api generates errors as 401 JSON responses with {message: <error message>}
@@ -57,7 +65,6 @@ fn authentication_failure_results_in_api_json_error() {
     // this is ureq's err for a non-200 status code
     assert_eq!(ureq::ErrorKind::HTTP, returned_error.kind());
     assert_eq!(401, returned_error.into_response().unwrap().status());
-
 }
 
 #[test]
@@ -143,9 +150,9 @@ fn add_task() {
         position: 1,
         content: "some text".into(),
     };
-    let return_body = serde_json::to_string(&task).unwrap();
-    let send_body = serde_json::to_value(task.clone()).unwrap();
-    let mock = new_mock_post("/checklists/1/tasks.json", send_body, return_body);
+    let response_body = serde_json::to_string(&task).unwrap();
+    let request_body = serde_json::to_value(task.clone()).unwrap();
+    let mock = new_mock_post("/checklists/1/tasks.json", request_body, response_body);
 
     let client = CheckvistClient::new(mockito::server_url(), "token".into());
     let returned_task = client.add_task(1, task.clone()).unwrap();
@@ -155,17 +162,17 @@ fn add_task() {
 }
 
 // Utilities
-fn new_mock_get(url: &str, return_body: String) -> mockito::Mock {
+fn new_mock_get(url: &str, response_body: String) -> mockito::Mock {
     mock("GET", url)
         .match_header("X-Client-Token", "token")
-        .with_body(return_body)
+        .with_body(response_body)
         .create()
 }
 
-fn new_mock_post(url: &str, send_body: serde_json::Value, return_body: String) -> mockito::Mock {
+fn new_mock_post(url: &str, request_body: serde_json::Value, response_body: String) -> mockito::Mock {
     mock("POST", url)
         .match_header("X-Client-Token", "token")
-        .match_body(Matcher::Json(send_body))
-        .with_body(return_body)
+        .match_body(Matcher::Json(request_body))
+        .with_body(response_body)
         .create()
 }
