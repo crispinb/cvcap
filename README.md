@@ -32,6 +32,7 @@
 * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
   * [ ] capture from stdin (eg `cat file | cvcap add`)
   * [ ] send errors to stderr
+* [ ] add user feedback during network calls (spinner? but wouldn't that need async?)
 * [ ] capture from clipboard (can this be made all-platform?) `cvcap add --from-clipboard` [or -c]
   - how to turn off main 'task' content requirement (which would conflict with the clipboard content)?
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
@@ -47,12 +48,17 @@
       * [ ] create with wixtools
 * [ ] set up CI (github actions will be fine)
 * [ ] --verbose turns on logging (ie. gets env_logger to log, regardless of env vars)
-* [ ] man pages
-* [ ] when saving a new config file, offer to show in file manager (or terminal)?
 * [ ] add support for 2fa key  when getting token from API? (https://checkvist.com/auth/api#task_data)
   * PENDING https://discuss.checkvist.com/t/2fa-in-auth-api/729/4
+* [ ] perhaps add a thread to check/refresh creds while user is interacting. We could keep the age of the
+  thread, we know they only last 24 hours, so can automatically refresh in the background, probably before 
+  the user's even started typing
 
-
+# Possible further features
+* man pages
+* non-text types (from clipboard or a specified/piped file)
+* specify new item's position in list
+* when saving a new config file, offer to show in file manager (or terminal)?
 
 # Resources
 * [Checkvist API](https://checkvist.com/auth/api)

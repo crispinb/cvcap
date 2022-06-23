@@ -15,15 +15,20 @@ fn get_auth_token() {
     let token = "test token";
     let username = "user@test.com";
     let remote_key = "anything";
-    let send_body = serde_json::to_value(HashMap::from([("remote_key", remote_key), ("username", username)])).unwrap();
+    let send_body = serde_json::to_value(HashMap::from([
+        ("remote_key", remote_key),
+        ("username", username),
+    ]))
+    .unwrap();
     let return_body = serde_json::to_string(&HashMap::from([("token", token)])).unwrap();
-    let mock =  mock("POST", "/auth/login.json?version=2")
+    let mock = mock("POST", "/auth/login.json?version=2")
         .match_body(Matcher::Json(send_body))
         .with_body(return_body)
         .create();
 
-    let returned_token = CheckvistClient::get_token(mockito::server_url(), username.into(), remote_key.into()).unwrap();
-
+    let returned_token =
+        CheckvistClient::get_token(mockito::server_url(), username.into(), remote_key.into())
+            .unwrap();
 
     mock.assert();
     assert_eq!(token, returned_token);
@@ -35,7 +40,7 @@ fn get_auth_token() {
 fn authentication_failure_results_in_api_json_error() {
     let mock = mock("GET", "/checklists/1.json")
         .match_header("X-Client-Token", "token")
-        .with_status(401) 
+        .with_status(401)
         .create();
 
     let client = CheckvistClient::new(mockito::server_url(), "token".to_string());
@@ -46,12 +51,13 @@ fn authentication_failure_results_in_api_json_error() {
         Some(err)
     } else {
         None
-    
-    }.unwrap();
+    }
+    .unwrap();
 
     // this is ureq's err for a non-200 status code
     assert_eq!(ureq::ErrorKind::HTTP, returned_error.kind());
     assert_eq!(401, returned_error.into_response().unwrap().status());
+
 }
 
 #[test]
