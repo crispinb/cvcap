@@ -59,23 +59,34 @@ struct Config {
     list_name: String,
 }
 
-fn main() -> Result<()> {
+fn main() {
     env_logger::init();
     let cli = Cli::parse();
+
+    match run_command(cli) {
+        // TODO: other platforms?
+        Ok(_) => std::process::exit(0),
+        Err(err) => {
+            error!("Fatal error. Root cause: {:?}", err.root_cause());
+            match err.root_cause().downcast_ref() {
+                Some(CheckvistError::TokenRefreshFailedError) => {
+                    eprintln!("You have been logged out of the Checkvist API.\nPlease run this command again to log back in");
+                    match delete_api_token() {
+                        Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
+                        _ => info!("Expired api token was deleted"),
+                    }
+                
+                },
+                _ => eprintln!("Error: {}", err)
+            }
+            std::process::exit(1);
+        }
+    }
+}
+
+fn run_command(cli: Cli) -> Result<(), Error> {
     let token = get_api_token()?;
-
     let mut client = CheckvistClient::new("https://checkvist.com/".into(), token);
-
-    // OK try this
-    // the CheckvistClient owns a token.
-    // So every call, it hshould refresh the token if it gets a 401.
-    // If the token is refreshed, it can either call back the client iwht the new
-    // token, or the client can just be responsible for checking if the saved token
-    // has changed, and save the new one.
-    // Then error with 'token invalid' if the refresh didn't work.
-    // The user logs in, stores a new token, and recreates the CheckvistClient
-    // with the new token.
-    
     let config = match (get_config_from_file(), cli.pick_list) {
         (_, true) | (None, false) => {
             let available_lists: Vec<(u32, String)> = client
@@ -97,20 +108,14 @@ fn main() -> Result<()> {
         }
         (Some(file_config), false) => file_config,
     };
-
-    // TODO - RESEARCH NEEDED:
-    //        how to make task-content positional arg optional with
-    //        this flag set?
     if cli.from_clipboard {
         todo!("get text from clipboard");
     }
-
     let task = Task {
         id: None,
         content: cli.task_content,
         position: 1,
     };
-
     let returned_task = client
         .add_task(config.list_id, task)
         .context("Couldn't add task to list using Checkvist API")?;
@@ -118,7 +123,6 @@ fn main() -> Result<()> {
         r#"Added task "{}" to list "{}""#,
         returned_task.content, config.list_name
     );
-
     Ok(())
 }
 
@@ -152,6 +156,12 @@ fn get_api_token() -> Result<String> {
     };
 
     Ok(checkvist_api_token)
+}
+
+fn delete_api_token() -> Result<(), keyring::Error> {
+    let os_username = whoami::username();
+    let checkvist_api_token =  Entry::new(KEYCHAIN_SERVICE_NAME, &os_username);
+    checkvist_api_token.delete_password()
 }
 
 fn get_config_from_file() -> Option<Config> {
@@ -219,7 +229,7 @@ fn create_new_config_file(config: &Config) -> Result<()> {
 /// from a string.
 /// Cycles supplied prompts until input is successful
 /// or an error is returned
-// TODO - RESEARCH NEEDED: 
+// TODO - RESEARCH NEEDED:
 //      - add a validator (closure presumably but on quick attempt I got in a mess with types)
 fn get_user_input<T: std::str::FromStr>(prompt: &str, correction: &str) -> Result<T> {
     let user_input = loop {

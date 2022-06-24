@@ -23,10 +23,10 @@
   * [x] get and store auth token on first run
     will need to ask user for email and Open API key (available from https://checkvist.com/auth/profile)
   * [X] ~~*retrieve auth token when available*~~ [2022-06-22]
-  * [ ] refresh auth token when refused
+  * [x] refresh auth token when refused
     - 401 error handler for all the checkvist methods to automatically retry token?
-  * [ ] re-get auth token when token refreesh fails
-
+  * [ ] re-get auth token when token refresh fails
+      - quick and dirty: delete token from keyring, and ask user to run again to re-login
 * [ ] add main error handling / reporting
   * [ ] do a bit of research about recommended ways to handle errors (any good exemplars etc)
   - use fn main ONLY To call a command function, then report on its errors (perhaps also display help)
@@ -51,9 +51,10 @@
 * [ ] --verbose turns on logging (ie. gets env_logger to log, regardless of env vars)
 * [ ] add support for 2fa key  when getting token from API? (https://checkvist.com/auth/api#task_data)
   * PENDING https://discuss.checkvist.com/t/2fa-in-auth-api/729/4
+* [ ] maybe add a timestamp to to the token to reduce an unecessary network call when (nearly) expired.
 * [ ] perhaps add a thread to check/refresh creds while user is interacting. We could keep the age of the
   thread, we know they only last 24 hours, so can automatically refresh in the background, probably before 
-  the user's even started typing
+  the user's even started typin
 
 # Possible further features
 * man pages
