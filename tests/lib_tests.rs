@@ -34,56 +34,69 @@ fn get_auth_token() {
     assert_eq!(token, returned_token);
 }
 
-// #[test]
-// // curl --json '{"old_token": "vmL37YOYhaIRw7El5iuS0OF9WQEqD7"}'  "https://checkvist.com/auth/refresh_token.json?version=2"
-// fn refresh_auth_token() {
-//     let request_body = serde_json::to_value(HashMap::from([("old_token", "test token")])).unwrap();
-//     let response_body = serde_json::to_value(HashMap::from([("old_token", "test token")])).unwrap();
-
-// }
-
 #[test]
 // Checkvist api generates errors as 401 JSON responses with {message: <error message>}
 // we can't usefully check the returned body as mockito uses its own body for 401's
-fn authentication_failure_results_in_api_json_error() {
-    let mock = mock("GET", "/checklists/1.json")
-        .match_header("X-Client-Token", "token")
+fn authentication_failure_results_in_token_refresh_attempt_then_redo() {
+    let (old_token, new_token) = ("old token", "token");
+    let mock_failed_auth = mock("GET", "/checklists/1.json")
+        .match_header("X-Client-Token", old_token)
         .with_status(401)
         .create();
+    let refresh_response_body = serde_json::to_string(&HashMap::from([("token", new_token)])).unwrap();
+    let mock_refresh = mock("POST", "/auth/refresh_token.json?version=2")
+        .with_body(refresh_response_body)
+        .create();
+    let list_name = "list1";
+    let expected_list = Checklist {
+        id: 1,
+        name: list_name.into(),
+        updated_at: "a date".to_string(),
+        task_count: 1,
+    };
+    let response_json = serde_json::to_string(&expected_list).unwrap();
+    let mock_success_auth = new_mock_get("/checklists/1.json", new_token, response_json);
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".to_string());
-    let result = client.get_list(1).unwrap_err();
+    let mut client = CheckvistClient::new(mockito::server_url(), old_token.into());
+    let result = client.get_list(1);
 
-    mock.assert();
-    let returned_error = if let CheckvistError::NetworkError(err) = result {
-        Some(err)
-    } else {
-        None
-    }
-    .unwrap();
+    mock_failed_auth.assert();
+    mock_refresh.assert();
+    mock_success_auth.assert();
+    assert_eq!(result.unwrap().name, list_name.to_string());
+}
 
-    // this is ureq's err for a non-200 status code
-    assert_eq!(ureq::ErrorKind::HTTP, returned_error.kind());
-    assert_eq!(401, returned_error.into_response().unwrap().status());
+#[test]
+fn refresh_failure_results_in_401_error() {
+    let mock_failed_auth = mock("GET", "/checklists/1.json")
+        .with_status(401)
+        .create();
+    let mock_refresh = mock("POST", "/auth/refresh_token.json?version=2")
+        .with_status(401)
+        .create();
+   
+    let mut client = CheckvistClient::new(mockito::server_url(), String::from("token"));
+    let returned_error = client.get_list(1).unwrap_err();
+    
+    mock_failed_auth.assert();
+    mock_refresh.assert();
+
+    assert!(std::matches!(returned_error, CheckvistError::TokenRefreshFailedError), "Failed to refresh token: {}", returned_error);
 }
 
 #[test]
 fn http_error_results_in_ureq_status_error() {
     let mock = mock("GET", "/checklists/1.json").with_status(404).create();
-    let client = CheckvistClient::new(mockito::server_url(), "token".into());
+    let mut client = CheckvistClient::new(mockito::server_url(), "token".into());
     let returned_error = client.get_list(1).unwrap_err();
 
     mock.assert();
-    if let CheckvistError::NetworkError(ureq::Error::Status(status, _)) = returned_error {
-        assert_eq!(status, 404);
-    } else {
-        panic!("Wrong error type: {:?}", returned_error);
-    }
+    assert!(std::matches!(returned_error, CheckvistError::NetworkError(ureq::Error::Status(404, _response))), "get_list() returned an error, but the status code wasn't 404");
 }
 
 #[test]
 fn network_error_results_in_ureq_transport_error() {
-    let client = CheckvistClient::new("http://localhost".into(), "token".into());
+    let mut client = CheckvistClient::new("http://localhost".into(), "token".into());
     let returned_error = client.get_tasks(1).unwrap_err();
 
     match returned_error {
@@ -96,8 +109,8 @@ fn network_error_results_in_ureq_transport_error() {
 
 #[test]
 fn json_decoding_error() {
-    let mock = new_mock_get("/checklists/1.json", "something".into());
-    let client = CheckvistClient::new(mockito::server_url(), "token".into());
+    let mock = new_mock_get("/checklists/1.json", "token", "something".into());
+    let mut client = CheckvistClient::new(mockito::server_url(), "token".into());
 
     let returned_error = client.get_list(1).unwrap_err();
 
@@ -117,9 +130,9 @@ fn get_list() {
         task_count: 1,
     };
     let response_json = serde_json::to_string(&expected_list).unwrap();
-    let mock = new_mock_get("/checklists/1.json", response_json);
+    let mock = new_mock_get("/checklists/1.json",  "token",response_json);
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".into());
+    let mut client = CheckvistClient::new(mockito::server_url(), "token".into());
     let result = client.get_list(1).unwrap();
 
     mock.assert();
@@ -134,9 +147,9 @@ fn get_tasks() {
         content: "content".to_string(),
     }];
     let task_json = serde_json::to_string(&tasks).unwrap();
-    let mock = new_mock_get("/checklists/1/tasks.json", task_json);
+    let mock = new_mock_get("/checklists/1/tasks.json", "token", task_json);
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".into());
+    let mut client = CheckvistClient::new(mockito::server_url(), "token".into());
     let returned_tasks = client.get_tasks(1).unwrap();
 
     mock.assert();
@@ -154,7 +167,7 @@ fn add_task() {
     let request_body = serde_json::to_value(task.clone()).unwrap();
     let mock = new_mock_post("/checklists/1/tasks.json", request_body, response_body);
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".into());
+    let mut client = CheckvistClient::new(mockito::server_url(), "token".into());
     let returned_task = client.add_task(1, task.clone()).unwrap();
 
     mock.assert();
@@ -162,14 +175,18 @@ fn add_task() {
 }
 
 // Utilities
-fn new_mock_get(url: &str, response_body: String) -> mockito::Mock {
+fn new_mock_get(url: &str, token_to_match: &str, response_body: String) -> mockito::Mock {
     mock("GET", url)
-        .match_header("X-Client-Token", "token")
+        .match_header("X-Client-Token", token_to_match)
         .with_body(response_body)
         .create()
 }
 
-fn new_mock_post(url: &str, request_body: serde_json::Value, response_body: String) -> mockito::Mock {
+fn new_mock_post(
+    url: &str,
+    request_body: serde_json::Value,
+    response_body: String,
+) -> mockito::Mock {
     mock("POST", url)
         .match_header("X-Client-Token", "token")
         .match_body(Matcher::Json(request_body))

@@ -64,17 +64,17 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let token = get_api_token()?;
 
-    let client = CheckvistClient::new("https://checkvist.com/".into(), token);
+    let mut client = CheckvistClient::new("https://checkvist.com/".into(), token);
 
-    // TODO: how to make a wrapper that does a token refresh (& if that fails gets
-    //  a new token) automatically when auth fails
-    // HOF (takes a function and responds to errors with a token refresh & recall?
-    //   Struct? With methods to get token that retry automatically?
-
-    // or put the below in a function. If we get a ureq::Error::ErrorKind::HTTP 
-    // (can we check for a 401 more specifically?), do a token refresh and then re-login if necessary, then
-    // call the function again with the stage we've got to
-    // The called functions can return a struct wiht info on the state-so-far?
+    // OK try this
+    // the CheckvistClient owns a token.
+    // So every call, it hshould refresh the token if it gets a 401.
+    // If the token is refreshed, it can either call back the client iwht the new
+    // token, or the client can just be responsible for checking if the saved token
+    // has changed, and save the new one.
+    // Then error with 'token invalid' if the refresh didn't work.
+    // The user logs in, stores a new token, and recreates the CheckvistClient
+    // with the new token.
     
     let config = match (get_config_from_file(), cli.pick_list) {
         (_, true) | (None, false) => {

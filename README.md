@@ -28,6 +28,7 @@
   * [ ] re-get auth token when token refreesh fails
 
 * [ ] add main error handling / reporting
+  * [ ] do a bit of research about recommended ways to handle errors (any good exemplars etc)
   - use fn main ONLY To call a command function, then report on its errors (perhaps also display help)
 * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
   * [ ] capture from stdin (eg `cat file | cvcap add`)
