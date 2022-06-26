@@ -1,8 +1,9 @@
 #![allow(unused_imports, unused_variables)]
 use anyhow::{anyhow, Context, Error, Result};
-use clap::Parser;
+use clap::{AppSettings, Command, Parser};
 use cvcap::{Checklist, CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
+use env_logger::Env;
 use keyring::{
     credential::{LinuxCredential, PlatformCredential},
     Entry,
@@ -17,15 +18,13 @@ use std::path::PathBuf;
 use std::{env, fs};
 
 // Logging.
-// Convention: reserve trace and debug levels for called crates (eg. checkvist api)
+// Convention: reserve trace and debug levels for libraries (eg. checkvist api)
 // Levels used in executable:
-// - error: any recoverable error (eg. inability to parse config toml: can recover by overwriting)
-// - warn: non-error potential problems
+// - error: any non-recoverable error (eg. inability to parse config toml: can recover by overwriting)
+// - warn: recoverable errors
 // - info: transient info for debugging
 
 static CONFIG_FILE_NAME: &str = "cvcap.toml";
-// TODO: get/create version during build
-static VERSION: &str = "0.1";
 const BANNER: &str = r"                           
   _   _   _   _   _  
  / \ / \ / \ / \ / \ 
@@ -36,16 +35,18 @@ const BANNER: &str = r"
 ";
 
 #[derive(Parser, Debug)]
-#[clap(name = BANNER)]
-#[clap(about = "A minimal Checkvist (https://checkvist.com) capture tool ")]
-#[clap(version = VERSION)]
+#[clap(
+    arg_required_else_help = true,
+    after_help = "This is what I want but dynamically"
+)]
+#[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
 struct Cli {
     /// The task you wish to add to your default list (you'll be prompted if there isn't one yet)
     #[clap(name = "task text")]
     task_content: String,
     /// Choose list to add task to (ie. other than your default list)
     #[clap(short = 'l', long)]
-    pick_list: bool,
+    choose_list: bool,
     /// Use text from clipboard instead of command line argument
     #[clap(short = 'c', long)]
     from_clipboard: bool,
@@ -57,57 +58,42 @@ struct Config {
     list_id: u32,
     #[serde(rename = "default_list_name")]
     list_name: String,
+    checkvist_username: Option<String>,
 }
 
 fn main() {
-    env_logger::init();
+    // no log output by default
+    env_logger::Builder::from_env(Env::default().default_filter_or("OFF")).init();
+    
+    // TODO: print config as clap after_help: https://github.com/clap-rs/clap/discussions/3871
+    println!("{}", get_status());
     let cli = Cli::parse();
 
-    match run_command(cli) {
-        // TODO: other platforms?
-        Ok(_) => std::process::exit(0),
-        Err(err) => {
-            error!("Fatal error. Root cause: {:?}", err.root_cause());
-            match err.root_cause().downcast_ref() {
-                Some(CheckvistError::TokenRefreshFailedError) => {
-                    eprintln!("You have been logged out of the Checkvist API.\nPlease run this command again to log back in");
-                    match delete_api_token() {
-                        Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
-                        _ => info!("Expired api token was deleted"),
-                    }
-                
-                },
-                _ => eprintln!("Error: {}", err)
+    // TODO: make token a cell in Checkvistclient, to avoid all the muts?
+    if let Err(err) = get_api_client().and_then(|mut client| {
+        get_config(&mut client, cli.choose_list)
+            .and_then(|config| run_command(cli, config, &mut client))
+    }) {
+        error!("Fatal error. Root cause: {:?}", err.root_cause());
+
+        match err.root_cause().downcast_ref() {
+            Some(CheckvistError::TokenRefreshFailedError) => {
+                eprintln!("You have been logged out of the Checkvist API.\nPlease run cvcap again to log back in");
+                match delete_api_token() {
+                    Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
+                    _ => info!("Expired api token was deleted"),
+                }
             }
-            std::process::exit(1);
+            _ => eprintln!("\nError: {}", err),
         }
+        std::process::exit(1);
     }
+
+    std::process::exit(0);
 }
 
-fn run_command(cli: Cli) -> Result<(), Error> {
-    let token = get_api_token()?;
-    let mut client = CheckvistClient::new("https://checkvist.com/".into(), token);
-    let config = match (get_config_from_file(), cli.pick_list) {
-        (_, true) | (None, false) => {
-            let available_lists: Vec<(u32, String)> = client
-                .get_lists()
-                .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
-                .context("Could not get lists from Checkvist API")?;
 
-            if let Some(user_config) = get_config_from_user(available_lists) {
-                if user_yn(&format!(
-                    "Do you want to save {} as your new default list?",
-                    user_config.list_name
-                )) {
-                    create_new_config_file(&user_config).context("Couldn't save config file")?;
-                };
-                user_config
-            } else {
-                return Err(anyhow!("Could not collect config info from user"));
-            }
-        }
-        (Some(file_config), false) => file_config,
-    };
+fn run_command(cli: Cli, config: Config, client: &mut CheckvistClient) -> Result<(), Error> {
     if cli.from_clipboard {
         todo!("get text from clipboard");
     }
@@ -126,6 +112,35 @@ fn run_command(cli: Cli) -> Result<(), Error> {
     Ok(())
 }
 
+fn get_config(client: &mut CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
+    match (get_config_from_file(), user_chooses_new_list) {
+        (_, true) | (None, false) => {
+            let available_lists: Vec<(u32, String)> = client
+                .get_lists()
+                .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
+                .context("Could not get lists from Checkvist API")?;
+
+            if let Some(user_config) = get_config_from_user(available_lists) {
+                if user_yn(&format!(
+                    "Do you want to save {} as your new default list?",
+                    user_config.list_name
+                )) {
+                    create_new_config_file(&user_config).context("Couldn't save config file")?;
+                };
+                Ok(user_config)
+            } else {
+                return Err(anyhow!("Could not collect config info from user"));
+            }
+        }
+        (Some(file_config), false) => Ok(file_config),
+    }
+}
+
+fn get_api_client() -> Result<CheckvistClient> {
+    let token = get_api_token()?;
+    Ok(CheckvistClient::new("https://checkvist.com/".into(), token))
+}
+
 /// Gets Checkvist API token (see https://checkvist.com/auth/api#task_data)
 /// - first attempts from local machine keyring
 /// - if not available, then asks user for username/pw & gets from checkvist API, storing on keyring)
@@ -134,23 +149,29 @@ fn run_command(cli: Cli) -> Result<(), Error> {
 //                  for the creds (keyring crate's 'username'). We can only get the checkvist
 //                  username from the user. We could then store it in the config, but seems like
 //                  an unnecessary step.
+// Errors if we can't get token from either keyring or Checkvist API
 // TODO: check/extend for Windows & MacOS
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
 fn get_api_token() -> Result<String> {
     // retrieve checkvist username and password from keyring if exists
     let os_username = whoami::username();
-    let checkvist_api_token = match Entry::new(KEYCHAIN_SERVICE_NAME, &os_username).get_password() {
-        Ok(password) => password,
-        Err(_) => {
+    let checkvist_api_token = match get_configured_api_token() {
+        Some((_username, password)) => password,
+        None => {
             // get token from Checkvist API
             let token = CheckvistClient::get_token(
                 "https://checkvist.com/".into(),
                 get_user_input("Username:", "Please enter your username <add details>")?,
                 get_user_input("remote key TBD more info", "do it")?,
-            )?;
+            )
+            .context("Couldn't get token from Checkvist API")?;
+
             // Entry does not exist; create it
             let entry = Entry::new(KEYCHAIN_SERVICE_NAME, &os_username);
-            entry.set_password(&token)?;
+            entry
+                .set_password(&token)
+                .context("Couldn't create keyring entry (for checkvist API token")?;
+
             token
         }
     };
@@ -158,9 +179,39 @@ fn get_api_token() -> Result<String> {
     Ok(checkvist_api_token)
 }
 
+// TODO: use this from get_api_token
+fn get_configured_api_token() -> Option<(String, String)> {
+    let username = whoami::username();
+    Entry::new(KEYCHAIN_SERVICE_NAME, &username).get_password().map(|pw| (username, pw)).ok()
+}
+
+fn get_status() -> String {
+    let mut status_text = String::from("\ncvcap current status:\n");
+    match get_configured_api_token() {
+        Some((username, token)) => {
+            status_text.push_str("\t - logged in to Checkvist\n");
+        }
+        None => {
+            status_text.push_str("\t - not logged in to Checkvist\n");
+        }
+    }
+    match get_config_from_file() {
+        Some(config) => {
+            status_text.push_str("\t - default list: ");
+            status_text.push_str(&config.list_name);
+            status_text.push('\n');
+        }
+        None => {
+            status_text.push_str("\t - no default list yet configured\n");
+        }
+    }
+
+    status_text
+}
+
 fn delete_api_token() -> Result<(), keyring::Error> {
     let os_username = whoami::username();
-    let checkvist_api_token =  Entry::new(KEYCHAIN_SERVICE_NAME, &os_username);
+    let checkvist_api_token = Entry::new(KEYCHAIN_SERVICE_NAME, &os_username);
     checkvist_api_token.delete_password()
 }
 
@@ -207,6 +258,7 @@ fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
     Some(Config {
         list_id: chosen_list.0,
         list_name: chosen_list.1.clone(),
+        checkvist_username: None,
     })
 }
 
