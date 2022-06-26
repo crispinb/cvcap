@@ -1,4 +1,5 @@
 use core::fmt;
+use std::cell::RefCell;
 use std::vec;
 
 use serde::{Deserialize, Serialize};
@@ -97,19 +98,19 @@ enum ApiResponse<T> {
 //     }
 // }
 
-#[derive(Debug)]
+#[derive(Debug)] 
 /// Manages token refreshing automatically,
 /// so generally will need to be mut
 pub struct CheckvistClient {
     base_url: Url,
-    api_token: String,
+    api_token: RefCell<String>,
 }
 
 impl CheckvistClient {
     pub fn new(base_url: String, api_token: String) -> Self {
         Self {
             base_url: Url::parse(&base_url).expect("Bad base url supplied"),
-            api_token,
+            api_token: RefCell::new(api_token),
         }
     }
 
@@ -131,24 +132,24 @@ impl CheckvistClient {
         Ok(response.token)
     }
 
-    pub fn refresh_token(&mut self) -> Result<(), CheckvistError> {
+    pub fn refresh_token(&self) -> Result<(), CheckvistError> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/auth/refresh_token.json?version=2"],
         );
 
         let response: ApiToken = ureq::post(url.as_str())
-            .send_json(ureq::json!({"old_token": self.api_token}))
+            .send_json(ureq::json!({"old_token": self.api_token.borrow().clone()}))
             // any error here means the token refresh failed
             .map_err(|_| CheckvistError::TokenRefreshFailedError)?
             .into_json()?;
 
-        self.api_token = response.token;
+        *self.api_token.borrow_mut() = response.token;
 
         Ok(())
     }
 
-    pub fn get_lists(&mut self) -> Result<Vec<Checklist>, CheckvistError> {
+    pub fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
         let url = CheckvistClient::build_endpoint(&self.base_url, vec!["/checklists.json"]);
 
         let response = self.checkvist_get(url)?.into_json()?;
@@ -157,7 +158,7 @@ impl CheckvistClient {
     }
 
     // TODO: how to inform client about the token change?
-    pub fn get_list(&mut self, list_id: u32) -> Result<Checklist, CheckvistError> {
+    pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/checklists/", &list_id.to_string(), ".json"],
@@ -168,7 +169,7 @@ impl CheckvistClient {
         self.to_result(response)
     }
 
-    pub fn get_tasks(&mut self, list_id: u32) -> Result<Vec<Task>, CheckvistError> {
+    pub fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
@@ -179,7 +180,7 @@ impl CheckvistClient {
         self.to_results(response)
     }
 
-    pub fn add_task(&mut self, list_id: u32, task: Task) -> Result<Task, CheckvistError> {
+    pub fn add_task(&self, list_id: u32, task: Task) -> Result<Task, CheckvistError> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
@@ -191,11 +192,11 @@ impl CheckvistClient {
     }
 
     fn checkvist_post<T: serde::Serialize>(
-        &mut self,
+        &self,
         url: Url,
         payload: T,
     ) -> Result<ureq::Response, CheckvistError> {
-        let request = ureq::post(url.as_str()).set("X-Client-token", &self.api_token);
+        let request = ureq::post(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
         let response = request.send_json(&payload).or_else(|err| {
             match err {
                 ureq::Error::Status(401, _) => {
@@ -204,7 +205,7 @@ impl CheckvistClient {
                         Ok(_) => {
                             // Self has a new token, so we must rebuild the request
                             let request =
-                                ureq::get(url.as_str()).set("X-Client-token", &self.api_token);
+                                ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
                             request
                                 .send_json(&payload)
                                 // without this, the match (which is the return value of the or_else
@@ -225,8 +226,8 @@ impl CheckvistClient {
         Ok(response)
     }
 
-    fn checkvist_get(&mut self, url: Url) -> Result<ureq::Response, CheckvistError> {
-        let request = ureq::get(url.as_str()).set("X-Client-token", &self.api_token);
+    fn checkvist_get(&self, url: Url) -> Result<ureq::Response, CheckvistError> {
+        let request = ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
         let response = request.call().or_else(|err| {
             match err {
                 ureq::Error::Status(401, _) => {
@@ -235,7 +236,7 @@ impl CheckvistClient {
                         Ok(_) => {
                             // Self has a new token, so we must rebuild the request
                             let request =
-                                ureq::get(url.as_str()).set("X-Client-token", &self.api_token);
+                                ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
                             request
                                 .call()
                                 // without this, the match (which is the return value of the or_else
@@ -316,12 +317,12 @@ mod test {
             .with_body(response_body)
             .create();
 
-        let mut client = CheckvistClient::new(mockito::server_url(), "token".to_string());
+        let client = CheckvistClient::new(mockito::server_url(), "token".to_string());
 
         client.refresh_token().unwrap();
 
         mock.assert();
-        assert_eq!(new_token, client.api_token);
+        assert_eq!(new_token, *client.api_token.borrow());
     }
 
     #[test]
@@ -331,7 +332,7 @@ mod test {
             .match_body(Matcher::Json(request_body))
             .with_status(401)
             .create();
-        let mut client = CheckvistClient::new(mockito::server_url(), "token".to_string());
+        let client = CheckvistClient::new(mockito::server_url(), "token".to_string());
 
         let err = client.refresh_token().unwrap_err();
 

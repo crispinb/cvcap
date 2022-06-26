@@ -69,10 +69,9 @@ fn main() {
     println!("{}", get_status());
     let cli = Cli::parse();
 
-    // TODO: make token a cell in Checkvistclient, to avoid all the muts?
-    if let Err(err) = get_api_client().and_then(|mut client| {
-        get_config(&mut client, cli.choose_list)
-            .and_then(|config| run_command(cli, config, &mut client))
+    if let Err(err) = get_api_client().and_then(|client| {
+        get_config(&client, cli.choose_list)
+            .and_then(|config| run_command(cli, config, &client))
     }) {
         error!("Fatal error. Root cause: {:?}", err.root_cause());
 
@@ -93,7 +92,7 @@ fn main() {
 }
 
 
-fn run_command(cli: Cli, config: Config, client: &mut CheckvistClient) -> Result<(), Error> {
+fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(), Error> {
     if cli.from_clipboard {
         todo!("get text from clipboard");
     }
@@ -102,17 +101,17 @@ fn run_command(cli: Cli, config: Config, client: &mut CheckvistClient) -> Result
         content: cli.task_content,
         position: 1,
     };
+    
+    println!(r#"Adding task "{}" to list "{}" ..."#, task.content, config.list_name);
     let returned_task = client
         .add_task(config.list_id, task)
         .context("Couldn't add task to list using Checkvist API")?;
-    println!(
-        r#"Added task "{}" to list "{}""#,
-        returned_task.content, config.list_name
-    );
+    println!("Done");
+
     Ok(())
 }
 
-fn get_config(client: &mut CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
+fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
     match (get_config_from_file(), user_chooses_new_list) {
         (_, true) | (None, false) => {
             let available_lists: Vec<(u32, String)> = client
@@ -179,7 +178,6 @@ fn get_api_token() -> Result<String> {
     Ok(checkvist_api_token)
 }
 
-// TODO: use this from get_api_token
 fn get_configured_api_token() -> Option<(String, String)> {
     let username = whoami::username();
     Entry::new(KEYCHAIN_SERVICE_NAME, &username).get_password().map(|pw| (username, pw)).ok()
