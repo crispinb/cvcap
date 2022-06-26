@@ -37,7 +37,7 @@ const BANNER: &str = r"
 #[derive(Parser, Debug)]
 #[clap(
     arg_required_else_help = true,
-    after_help = "This is what I want but dynamically"
+    after_help = "[replace this with dynamic get_status()]"
 )]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
 struct Cli {
@@ -114,6 +114,7 @@ fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(),
 fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
     match (get_config_from_file(), user_chooses_new_list) {
         (_, true) | (None, false) => {
+            println!("Fetching lists from Checkvist ...");
             let available_lists: Vec<(u32, String)> = client
                 .get_lists()
                 .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
@@ -154,7 +155,7 @@ const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
 fn get_api_token() -> Result<String> {
     // retrieve checkvist username and password from keyring if exists
     let os_username = whoami::username();
-    let checkvist_api_token = match get_configured_api_token() {
+    let checkvist_api_token = match get_api_token_from_keyring() {
         Some((_username, password)) => password,
         None => {
             // get token from Checkvist API
@@ -178,14 +179,14 @@ fn get_api_token() -> Result<String> {
     Ok(checkvist_api_token)
 }
 
-fn get_configured_api_token() -> Option<(String, String)> {
+fn get_api_token_from_keyring() -> Option<(String, String)> {
     let username = whoami::username();
     Entry::new(KEYCHAIN_SERVICE_NAME, &username).get_password().map(|pw| (username, pw)).ok()
 }
 
 fn get_status() -> String {
     let mut status_text = String::from("\ncvcap current status:\n");
-    match get_configured_api_token() {
+    match get_api_token_from_keyring() {
         Some((username, token)) => {
             status_text.push_str("\t - logged in to Checkvist\n");
         }

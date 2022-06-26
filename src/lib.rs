@@ -98,7 +98,7 @@ enum ApiResponse<T> {
 //     }
 // }
 
-#[derive(Debug)] 
+#[derive(Debug)]
 /// Manages token refreshing automatically,
 /// so generally will need to be mut
 pub struct CheckvistClient {
@@ -191,12 +191,14 @@ impl CheckvistClient {
         self.to_result(response)
     }
 
+    // TODO - REFACTOR: combine get & post methods
     fn checkvist_post<T: serde::Serialize>(
         &self,
         url: Url,
         payload: T,
     ) -> Result<ureq::Response, CheckvistError> {
-        let request = ureq::post(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
+        let request =
+            ureq::post(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
         let response = request.send_json(&payload).or_else(|err| {
             match err {
                 ureq::Error::Status(401, _) => {
@@ -204,8 +206,8 @@ impl CheckvistClient {
                         // we have a new token. Try the request again
                         Ok(_) => {
                             // Self has a new token, so we must rebuild the request
-                            let request =
-                                ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
+                            let request = ureq::get(url.as_str())
+                                .set("X-Client-token", &self.api_token.borrow().clone());
                             request
                                 .send_json(&payload)
                                 // without this, the match (which is the return value of the or_else
@@ -227,7 +229,8 @@ impl CheckvistClient {
     }
 
     fn checkvist_get(&self, url: Url) -> Result<ureq::Response, CheckvistError> {
-        let request = ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
+        let request =
+            ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
         let response = request.call().or_else(|err| {
             match err {
                 ureq::Error::Status(401, _) => {
@@ -235,8 +238,8 @@ impl CheckvistClient {
                         // we have a new token. Try the request again
                         Ok(_) => {
                             // Self has a new token, so we must rebuild the request
-                            let request =
-                                ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
+                            let request = ureq::get(url.as_str())
+                                .set("X-Client-token", &self.api_token.borrow().clone());
                             request
                                 .call()
                                 // without this, the match (which is the return value of the or_else

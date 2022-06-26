@@ -29,19 +29,16 @@
       - quick and dirty: delete token from keyring, and ask user to run again to re-login
 * [X] ~~*add main error handling / reporting*~~ [2022-06-24]
   - use fn main ONLY To call a command function, then report on its errors (perhaps also display help)
-* [ ] add Checkvist username to status
-* [ ] show status when invoked without args (logged in / default list)
+* [X] ~~*add Checkvist username to status*~~ [2022-06-26]
+* [X] ~~*show status when invoked without args (logged in / default list)*~~ [2022-06-26]
 * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
-  * [ ] capture from stdin (eg `cat file | cvcap add`)
-  * [ ] send errors to stderr
-* [ ] add user feedback during network calls (spinner? but wouldn't that need async? I could do it on a thread I guess)
-* [ ] capture from clipboard (can this be made all-platform?) `cvcap add --from-clipboard` [or -c]
-  - how to turn off main 'task' content requirement (which would conflict with the clipboard content)?
+  * [ ] send errors to stderr (I think they are already?)
+* [ ] consolidate (or decide on) error! and/or .context
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
     lib - checkvist-api
     bin - cvcap (and later perhaps cvconv and chrello)
     NB - remember the 2 will need different deps
-* [ ] replace re-login approach (instead of asking user to run again, launch login immediately on user confirmation)
+* [ ] test on win
 * [ ] install / deploy
       * just cargo install, or anything else?
   * linux
@@ -49,8 +46,14 @@
     * [ ] windows installer
       * [ ] set up file sharing with the quickemu VM for testing
       * [ ] create with wixtools
+## post 1st release
+* [ ] replace re-login approach (instead of asking user to run again, launch login immediately on user confirmation)
+* [ ] capture from stdin (eg `cat file | cvcap add`)
 * [ ] set up CI (github actions will be fine)
-* [ ] stop env_logger logging errors when there's no RUST_LOG set (should be entirely opt-in)
+* [ ] capture from clipboard (can this be made all-platform?) `cvcap add --from-clipboard` [or -c]
+  - how to turn off main 'task' content requirement (which would conflict with the clipboard content)?
+* [ ] add user feedback during network calls (spinner? but wouldn't that need async? I could do it on a thread I guess)
+* [X] ~~*stop env_logger logging errors when there's no RUST_LOG set (should be entirely opt-in)*~~ [2022-06-26]
 * [ ] --verbose turns on logging (ie. gets env_logger to log, regardless of env vars)
 * [ ] add support for 2fa key  when getting token from API? (https://checkvist.com/auth/api#task_data)
   * PENDING https://discuss.checkvist.com/t/2fa-in-auth-api/729/4
