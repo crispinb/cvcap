@@ -31,6 +31,7 @@
   - use fn main ONLY To call a command function, then report on its errors (perhaps also display help)
 * [X] ~~*add Checkvist username to status*~~ [2022-06-26]
 * [X] ~~*show status when invoked without args (logged in / default list)*~~ [2022-06-26]
+* [X] ~~*save new token after refresh (currently main has no idea when the token is refreshed)*~~ [2022-06-29]
 * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
   * [ ] send errors to stderr (I think they are already?)
 * [ ] consolidate (or decide on) error! and/or .context

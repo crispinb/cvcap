@@ -1,4 +1,5 @@
 use core::fmt;
+use log::{error, info};
 use std::cell::RefCell;
 use std::vec;
 
@@ -98,19 +99,21 @@ enum ApiResponse<T> {
 //     }
 // }
 
-#[derive(Debug)]
 /// Manages token refreshing automatically,
 /// so generally will need to be mut
 pub struct CheckvistClient {
     base_url: Url,
     api_token: RefCell<String>,
+    // TODO: why might we need a closure sig instead?
+    token_refresh_callback: fn(&str) -> (), 
 }
 
 impl CheckvistClient {
-    pub fn new(base_url: String, api_token: String) -> Self {
+    pub fn new(base_url: String, api_token: String, on_token_refresh: fn(&str) -> ()) -> Self {
         Self {
             base_url: Url::parse(&base_url).expect("Bad base url supplied"),
             api_token: RefCell::new(api_token),
+            token_refresh_callback: on_token_refresh,
         }
     }
 
@@ -138,13 +141,16 @@ impl CheckvistClient {
             vec!["/auth/refresh_token.json?version=2"],
         );
 
+        info!("Refreshing api token");
         let response: ApiToken = ureq::post(url.as_str())
             .send_json(ureq::json!({"old_token": self.api_token.borrow().clone()}))
-            // any error here means the token refresh failed
+            // *any* error here means the token refresh failed
             .map_err(|_| CheckvistError::TokenRefreshFailedError)?
             .into_json()?;
 
-        *self.api_token.borrow_mut() = response.token;
+        *self.api_token.borrow_mut() = response.token.clone();
+        info!("Refreshed api token");
+        (self.token_refresh_callback)(&response.token);
 
         Ok(())
     }
@@ -157,7 +163,6 @@ impl CheckvistClient {
         self.to_results(response)
     }
 
-    // TODO: how to inform client about the token change?
     pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
@@ -206,7 +211,7 @@ impl CheckvistClient {
                         // we have a new token. Try the request again
                         Ok(_) => {
                             // Self has a new token, so we must rebuild the request
-                            let request = ureq::get(url.as_str())
+                            let request = ureq::post(url.as_str())
                                 .set("X-Client-token", &self.api_token.borrow().clone());
                             request
                                 .send_json(&payload)
@@ -282,7 +287,10 @@ impl CheckvistClient {
         match response {
             ApiResponse::OkCheckvistItem(returned_struct) => Ok(returned_struct),
             // as I don't know how to merge the 2 to_results, and we must deal with all responses here:
-            ApiResponse::OkCheckvistList(_v) => panic!("Should never get here"),
+            ApiResponse::OkCheckvistList(_t) => {
+                error!("Checkvist API returned JSON decoded to unexpected type");
+                panic!("Something irrecoverable happened")
+            }
             // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string so would hardly be reliable, but then could have a fallback type
             ApiResponse::CheckvistApiError { message } => {
                 Err(CheckvistError::UnknownError { message })
@@ -320,7 +328,7 @@ mod test {
             .with_body(response_body)
             .create();
 
-        let client = CheckvistClient::new(mockito::server_url(), "token".to_string());
+        let client = CheckvistClient::new(mockito::server_url(), "token".to_string(), |_t| () );
 
         client.refresh_token().unwrap();
 
@@ -335,7 +343,7 @@ mod test {
             .match_body(Matcher::Json(request_body))
             .with_status(401)
             .create();
-        let client = CheckvistClient::new(mockito::server_url(), "token".to_string());
+        let client = CheckvistClient::new(mockito::server_url(), "token".to_string(), |_t| ());
 
         let err = client.refresh_token().unwrap_err();
 

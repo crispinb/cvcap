@@ -20,7 +20,7 @@ use std::{env, fs};
 // Logging.
 // Convention: reserve trace and debug levels for libraries (eg. checkvist api)
 // Levels used in executable:
-// - error: any non-recoverable error (eg. inability to parse config toml: can recover by overwriting)
+// - error: any non-recoverable error (eg. inability to parse config toml: can recover by o662xkDtJuGaFa2verwriting)
 // - warn: recoverable errors
 // - info: transient info for debugging
 
@@ -61,17 +61,19 @@ struct Config {
     checkvist_username: Option<String>,
 }
 
+// perhaps https://github.com/lpxxn/rust-design-pattern/blob/master/behavioral/observer.rs
+// more discussion: https://www.reddit.com/r/rust/comments/gi2pld/callback_functions_the_right_way/
 fn main() {
     // no log output by default
     env_logger::Builder::from_env(Env::default().default_filter_or("OFF")).init();
-    
+    // env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
+
     // TODO: print config as clap after_help: https://github.com/clap-rs/clap/discussions/3871
     println!("{}", get_status());
     let cli = Cli::parse();
 
     if let Err(err) = get_api_client().and_then(|client| {
-        get_config(&client, cli.choose_list)
-            .and_then(|config| run_command(cli, config, &client))
+        get_config(&client, cli.choose_list).and_then(|config| run_command(cli, config, &client))
     }) {
         error!("Fatal error. Root cause: {:?}", err.root_cause());
 
@@ -91,7 +93,6 @@ fn main() {
     std::process::exit(0);
 }
 
-
 fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(), Error> {
     if cli.from_clipboard {
         todo!("get text from clipboard");
@@ -101,8 +102,11 @@ fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(),
         content: cli.task_content,
         position: 1,
     };
-    
-    println!(r#"Adding task "{}" to list "{}" ..."#, task.content, config.list_name);
+
+    println!(
+        r#"Adding task "{}" to list "{}" ..."#,
+        task.content, config.list_name
+    );
     let returned_task = client
         .add_task(config.list_id, task)
         .context("Couldn't add task to list using Checkvist API")?;
@@ -138,7 +142,12 @@ fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<C
 
 fn get_api_client() -> Result<CheckvistClient> {
     let token = get_api_token()?;
-    Ok(CheckvistClient::new("https://checkvist.com/".into(), token))
+    Ok(CheckvistClient::new(
+        "https://checkvist.com/".into(),
+        token,
+        // clippy warns about the unit argument, but I want it for the side effect
+        |token| save_api_token_to_keyring(token).unwrap_or(error!("Couldn't save token to keyring"))
+    ))
 }
 
 /// Gets Checkvist API token (see https://checkvist.com/auth/api#task_data)
@@ -154,7 +163,6 @@ fn get_api_client() -> Result<CheckvistClient> {
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
 fn get_api_token() -> Result<String> {
     // retrieve checkvist username and password from keyring if exists
-    let os_username = whoami::username();
     let checkvist_api_token = match get_api_token_from_keyring() {
         Some((_username, password)) => password,
         None => {
@@ -167,10 +175,7 @@ fn get_api_token() -> Result<String> {
             .context("Couldn't get token from Checkvist API")?;
 
             // Entry does not exist; create it
-            let entry = Entry::new(KEYCHAIN_SERVICE_NAME, &os_username);
-            entry
-                .set_password(&token)
-                .context("Couldn't create keyring entry (for checkvist API token")?;
+            save_api_token_to_keyring(&token)?;
 
             token
         }
@@ -179,9 +184,21 @@ fn get_api_token() -> Result<String> {
     Ok(checkvist_api_token)
 }
 
+fn save_api_token_to_keyring(token: &str) -> Result<(), Error> {
+    let entry = Entry::new(KEYCHAIN_SERVICE_NAME, &whoami::username());
+    entry
+        .set_password(token)
+        .context("Couldn't create keyring entry (for checkvist API token")?;
+
+    Ok(())
+}
+
 fn get_api_token_from_keyring() -> Option<(String, String)> {
     let username = whoami::username();
-    Entry::new(KEYCHAIN_SERVICE_NAME, &username).get_password().map(|pw| (username, pw)).ok()
+    Entry::new(KEYCHAIN_SERVICE_NAME, &username)
+        .get_password()
+        .map(|pw| (username, pw))
+        .ok()
 }
 
 fn get_status() -> String {
