@@ -28,7 +28,6 @@
   * [X] ~~*re-get auth token when token refresh fails*~~ [2022-06-24]
       - quick and dirty: delete token from keyring, and ask user to run again to re-login
 * [X] ~~*add main error handling / reporting*~~ [2022-06-24]
-  - use fn main ONLY To call a command function, then report on its errors (perhaps also display help)
 * [X] ~~*add Checkvist username to status*~~ [2022-06-26]
 * [X] ~~*show status when invoked without args (logged in / default list)*~~ [2022-06-26]
 * [X] ~~*save new token after refresh (currently main has no idea when the token is refreshed)*~~ [2022-06-29]
@@ -39,6 +38,9 @@
     lib - checkvist-api
     bin - cvcap (and later perhaps cvconv and chrello)
     NB - remember the 2 will need different deps
+- [ ] print status instead of help
+  *  https://github.com/clap-rs/clap/discussions/3871
+     (so far I can't make head or tail of how to do this)
 * [ ] test on win
 * [ ] install / deploy
       * just cargo install, or anything else?
