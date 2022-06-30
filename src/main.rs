@@ -1,6 +1,6 @@
 #![allow(unused_imports, unused_variables)]
 use anyhow::{anyhow, Context, Error, Result};
-use clap::{AppSettings, Command, Parser};
+use clap::Parser;
 use cvcap::{Checklist, CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
 use env_logger::Env;
@@ -35,10 +35,6 @@ const BANNER: &str = r"
 ";
 
 #[derive(Parser, Debug)]
-#[clap(
-    arg_required_else_help = true,
-    after_help = "[replace this with dynamic get_status()]"
-)]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
 struct Cli {
     /// The task you wish to add to your default list (you'll be prompted if there isn't one yet)
@@ -61,14 +57,11 @@ struct Config {
     checkvist_username: Option<String>,
 }
 
-// perhaps https://github.com/lpxxn/rust-design-pattern/blob/master/behavioral/observer.rs
-// more discussion: https://www.reddit.com/r/rust/comments/gi2pld/callback_functions_the_right_way/
 fn main() {
     // no log output by default
     env_logger::Builder::from_env(Env::default().default_filter_or("OFF")).init();
     // env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
 
-    // TODO: print config as clap after_help: https://github.com/clap-rs/clap/discussions/3871
     println!("{}", get_status());
     let cli = Cli::parse();
 
@@ -146,6 +139,7 @@ fn get_api_client() -> Result<CheckvistClient> {
         "https://checkvist.com/".into(),
         token,
         // clippy warns about the unit argument, but I want it for the side effect
+        #[allow(clippy::unit_arg)]
         |token| save_api_token_to_keyring(token).unwrap_or(error!("Couldn't save token to keyring"))
     ))
 }
