@@ -33,7 +33,8 @@
 * [X] ~~*save new token after refresh (currently main has no idea when the token is refreshed)*~~ [2022-06-29]
 * [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
   * [ ] send errors to stderr (I think they are already?)
-* [ ] consolidate (or decide on) error! and/or .context
+* [ ] consolidate (or decide on) error! and/or .context for best way to report fatal errors
+* [ ] test on win
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
     lib - checkvist-api
     bin - cvcap (and later perhaps cvconv and chrello)
@@ -41,7 +42,6 @@
 - [ ] print status instead of help
   *  https://github.com/clap-rs/clap/discussions/3871
      (so far I can't make head or tail of how to do this)
-* [ ] test on win
 * [ ] install / deploy
       * just cargo install, or anything else?
   * linux
@@ -50,6 +50,8 @@
       * [ ] set up file sharing with the quickemu VM for testing
       * [ ] create with wixtools
 ## post 1st release
+* [ ] find a way to merge checkvist GET and POST methods
+   see stash@{0}: On main: Failed attempt to merge GET and POST checkvist API methods
 * [ ] replace re-login approach (instead of asking user to run again, launch login immediately on user confirmation)
 * [ ] capture from stdin (eg `cat file | cvcap add`)
 * [ ] set up CI (github actions will be fine)

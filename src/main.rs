@@ -119,10 +119,11 @@ fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<C
 
             if let Some(user_config) = get_config_from_user(available_lists) {
                 if user_yn(&format!(
-                    "Do you want to save {} as your new default list?",
+                    "Do you want to save '{}' as your new default list?",
                     user_config.list_name
                 )) {
                     create_new_config_file(&user_config).context("Couldn't save config file")?;
+                    println!("'{}' is now your default list", user_config.list_name);
                 };
                 Ok(user_config)
             } else {
