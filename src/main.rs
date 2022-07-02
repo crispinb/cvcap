@@ -9,6 +9,7 @@ use keyring::{
     Entry,
 };
 use log::{debug, error, info, trace, warn};
+use progress_indicator::ProgressIndicator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ffi::OsStr;
@@ -16,6 +17,8 @@ use std::fmt::Display;
 use std::fs::{create_dir, File};
 use std::path::PathBuf;
 use std::{env, fs};
+
+mod progress_indicator;
 
 // Logging.
 // Convention: reserve trace and debug levels for libraries (eg. checkvist api)
@@ -60,8 +63,9 @@ struct Config {
 fn main() {
     // no log output by default
     env_logger::Builder::from_env(Env::default().default_filter_or("OFF")).init();
-    // env_logger::Builder::from_env(Env::default().default_filter_or("trace")).init();
 
+    // I'd rather print this after the message Cli::parse prints, but the latter
+    // exits on error (eg. lacking compulsory args)
     println!("{}", get_status());
     let cli = Cli::parse();
 
@@ -88,8 +92,10 @@ fn main() {
 
 fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(), Error> {
     if cli.from_clipboard {
-        todo!("get text from clipboard");
+        println!("Clipboard support coming soon!");
+        std::process::exit(0);
     }
+
     let task = Task {
         id: None,
         content: cli.task_content,
@@ -97,13 +103,19 @@ fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(),
     };
 
     println!(
-        r#"Adding task "{}" to list "{}" ..."#,
+        r#"Adding task "{}" to list "{}""#,
         task.content, config.list_name
     );
+
+    let mut p = ProgressIndicator::new(".", "Task added", 250);
+    p.start()?;
+
+    // start a thread that writes at time intervals
     let returned_task = client
         .add_task(config.list_id, task)
         .context("Couldn't add task to list using Checkvist API")?;
-    println!("Done");
+
+    p.stop().map_err(|e| anyhow!(e))?;
 
     Ok(())
 }
@@ -111,12 +123,14 @@ fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(),
 fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
     match (get_config_from_file(), user_chooses_new_list) {
         (_, true) | (None, false) => {
-            println!("Fetching lists from Checkvist ...");
+            println!("Fetching lists from Checkvist");
+            let mut p = ProgressIndicator::new(".", "", 250);
+            p.start()?;
             let available_lists: Vec<(u32, String)> = client
                 .get_lists()
                 .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
                 .context("Could not get lists from Checkvist API")?;
-
+            p.stop().map_err(|e| anyhow!(e))?;
             if let Some(user_config) = get_config_from_user(available_lists) {
                 if user_yn(&format!(
                     "Do you want to save '{}' as your new default list?",
@@ -141,7 +155,9 @@ fn get_api_client() -> Result<CheckvistClient> {
         token,
         // clippy warns about the unit argument, but I want it for the side effect
         #[allow(clippy::unit_arg)]
-        |token| save_api_token_to_keyring(token).unwrap_or(error!("Couldn't save token to keyring"))
+        |token| {
+            save_api_token_to_keyring(token).unwrap_or(error!("Couldn't save token to keyring"))
+        },
     ))
 }
 

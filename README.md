@@ -31,10 +31,11 @@
 * [X] ~~*add Checkvist username to status*~~ [2022-06-26]
 * [X] ~~*show status when invoked without args (logged in / default list)*~~ [2022-06-26]
 * [X] ~~*save new token after refresh (currently main has no idea when the token is refreshed)*~~ [2022-06-29]
-* [ ] review for proper use of signals and stdin/stderr (see cmdline gitbook)
-  * [ ] send errors to stderr (I think they are already?)
+* [X] ~~*review for proper use of signals and stdin/stderr (see cmdline gitbook)*~~ [2022-07-01]
+  * [X] ~~*send errors to stderr (I think they are already?)*~~ [2022-07-01]
+* [ ] write a simple progress indicator using a thread (ie. don't need to pull in tokio etc)
 * [ ] consolidate (or decide on) error! and/or .context for best way to report fatal errors
-* [ ] test on win
+* [ ] build & test on win
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
     lib - checkvist-api
     bin - cvcap (and later perhaps cvconv and chrello)
@@ -42,14 +43,19 @@
 - [ ] print status instead of help
   *  https://github.com/clap-rs/clap/discussions/3871
      (so far I can't make head or tail of how to do this)
+* [ ] choose license on github
+* [ ] check .git for old secrets
 * [ ] install / deploy
-      * just cargo install, or anything else?
-  * linux
-    * I reckon just a build of the binary is fine for linux users
-    * [ ] windows installer
-      * [ ] set up file sharing with the quickemu VM for testing
-      * [ ] create with wixtools
+  * cargo install
+  * binary releases (on github) for lin / win / (? mac)
+    * set up github actions + releases to deploy downloadable binary
+* [ ] tidy output
+* [ ] quiet output for scripting
+
 ## post 1st release
+* [ ] windows installer
+  * [ ] set up file sharing with the quickemu VM for testing
+  * [ ] create with wixtools
 * [ ] find a way to merge checkvist GET and POST methods
    see stash@{0}: On main: Failed attempt to merge GET and POST checkvist API methods
 * [ ] replace re-login approach (instead of asking user to run again, launch login immediately on user confirmation)
@@ -88,9 +94,11 @@
 * https://crates.io/crates/secrecy
 * https://crates.io/search?q=1password
 
+## cli 
+* https://rust-cli.github.io/book/in-depth/machine-communication.html 
+  how to tailor std/error out for scripting use
 
-
-## commandline UI
+## cli UI
 + https://rust-cli.github.io/book/index.html
 * https://crates.io/crates/tui
 * https://crates.io/crates/cursive
@@ -98,9 +106,13 @@
 * https://lunatic.solutions/blog/lunatic-chat/
 * https://github.com/lunatic-solutions/chat implementation, which apparently has changed a lot since the article (because of underlying lunatic changes)
   In additiion to the wasm stuff, he uses TUI which might be usefully instructive. Looks difficult though.
+* https://crates.io/crates/human-panic
+  Set up a panic handler for user  output 
 
 ## Release / packaging
+* https://rust-cli.github.io/book/tutorial/packaging.html
 * https://wixtoolset.org/
+
 
 ## Windows VM
 * https://docs.fedoraproject.org/en-US/quick-docs/getting-started-with-virtualization/ 
