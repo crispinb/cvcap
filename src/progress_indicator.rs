@@ -1,6 +1,5 @@
 use std::io::{stdout, Write};
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::Arc;
+use std::sync::mpsc::{self, Sender};
 use std::thread::{self, JoinHandle};
 
 // TODO: wrapper api of some sort - function? macro?
@@ -52,11 +51,11 @@ impl ProgressIndicator {
             // unwrap seems OK here - not sure how it fails?
             .unwrap()
             .send(())
-            .map_err(|e| error_message.clone())?;
+            .map_err(|_e| error_message.clone())?;
 
         self.handle
             .unwrap()
             .join()
-            .map_err(|e| error_message)
+            .map_err(|_e| error_message)
     }
 }

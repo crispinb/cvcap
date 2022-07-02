@@ -1,22 +1,17 @@
-#![allow(unused_imports, unused_variables)]
+// #![allow(unused_imports, unused_variables)]
 use anyhow::{anyhow, Context, Error, Result};
 use clap::Parser;
-use cvcap::{Checklist, CheckvistClient, CheckvistError, Task};
+use cvcap::{CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
 use env_logger::Env;
 use keyring::{
-    credential::{LinuxCredential, PlatformCredential},
     Entry,
 };
-use log::{debug, error, info, trace, warn};
+use log::{error, info, warn};
 use progress_indicator::ProgressIndicator;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::ffi::OsStr;
-use std::fmt::Display;
-use std::fs::{create_dir, File};
+use std::fs::{self, create_dir, File};
 use std::path::PathBuf;
-use std::{env, fs};
 
 mod progress_indicator;
 
@@ -111,7 +106,7 @@ fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(),
     p.start()?;
 
     // start a thread that writes at time intervals
-    let returned_task = client
+    let _returned_task = client
         .add_task(config.list_id, task)
         .context("Couldn't add task to list using Checkvist API")?;
 
@@ -215,7 +210,7 @@ fn get_api_token_from_keyring() -> Option<(String, String)> {
 fn get_status() -> String {
     let mut status_text = String::from("\ncvcap current status:\n");
     match get_api_token_from_keyring() {
-        Some((username, token)) => {
+        Some((_username, _token)) => {
             status_text.push_str("\t - logged in to Checkvist\n");
         }
         None => {
@@ -299,7 +294,7 @@ fn create_new_config_file(config: &Config) -> Result<()> {
     }
 
     let json = toml::to_string(config)?;
-    let file = File::create(config_file_path())?;
+    let _file = File::create(config_file_path())?;
     std::fs::write(config_file_path(), json)?;
     Ok(())
 }

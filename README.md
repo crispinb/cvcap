@@ -33,13 +33,17 @@
 * [X] ~~*save new token after refresh (currently main has no idea when the token is refreshed)*~~ [2022-06-29]
 * [X] ~~*review for proper use of signals and stdin/stderr (see cmdline gitbook)*~~ [2022-07-01]
   * [X] ~~*send errors to stderr (I think they are already?)*~~ [2022-07-01]
-* [ ] write a simple progress indicator using a thread (ie. don't need to pull in tokio etc)
-* [ ] consolidate (or decide on) error! and/or .context for best way to report fatal errors
-* [ ] build & test on win
+* [X] ~~*write a simple progress indicator using a thread (ie. don't need to pull in tokio etc)*~~ [2022-07-02]
+* [X] ~~*build & test on win using cross*~~ [2022-07-02]
+* [ ] fix: passwords displayed during input
+* [ ] add verbose error logging option
+* [ ] fix: "couldn't save config file" on windows
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
     lib - checkvist-api
     bin - cvcap (and later perhaps cvconv and chrello)
     NB - remember the 2 will need different deps
+* [ ] consolidate (or decide on) error! and/or .context for best way to report fatal errors
+   * [ ] test all interactively
 - [ ] print status instead of help
   *  https://github.com/clap-rs/clap/discussions/3871
      (so far I can't make head or tail of how to do this)
@@ -49,10 +53,13 @@
   * cargo install
   * binary releases (on github) for lin / win / (? mac)
     * set up github actions + releases to deploy downloadable binary
+    * https://github.com/cross-rs/cross/wiki/FAQ#github-workflows 
+      use `cross` in github actions
 * [ ] tidy output
 * [ ] quiet output for scripting
 
 ## post 1st release
+* [ ] automate cli interaction error testing?
 * [ ] windows installer
   * [ ] set up file sharing with the quickemu VM for testing
   * [ ] create with wixtools
@@ -112,6 +119,11 @@
 ## Release / packaging
 * https://rust-cli.github.io/book/tutorial/packaging.html
 * https://wixtoolset.org/
+
+## Cross compilation
+* cargo book
+* https://github.com/cross-rs/cross
+
 
 
 ## Windows VM
