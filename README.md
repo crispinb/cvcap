@@ -44,7 +44,7 @@
 * [X] ~~*fix: "couldn't save config file" on windows*~~ [2022-07-04]
 * [X] ~~*add '-v' option to change logging to 'debug' level (others can still work via RUST_LOG). Still no logging by default*~~ [2022-07-04] 
       User should only see the interactions we have specifically decided on for each interaction
-* [ ] fix: passwords displayed during input
+* [X] ~~*fix: passwords displayed during input*~~ [2022-07-04]
       This proves a bit complex. Replace all prompts with https://docs.rs/dialoguer/latest/dialoguer/
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
     lib - checkvist-api

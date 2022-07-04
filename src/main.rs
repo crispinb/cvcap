@@ -2,6 +2,7 @@
 use anyhow::{anyhow, Context, Error, Result};
 use clap::Parser;
 use cvcap::{CheckvistClient, CheckvistError, Task};
+use dialoguer::{Confirm, Input, Password, Select};
 use directories::ProjectDirs;
 use env_logger::Env;
 use keyring::Entry;
@@ -59,6 +60,7 @@ struct Config {
 fn main() {
     // I'd rather print this after the message Cli::parse prints, but the latter
     // exits on error (eg. lacking compulsory args)
+    // TODO: just emit as a new command?
     println!("{}", get_status());
     let cli = Cli::parse();
 
@@ -130,15 +132,19 @@ fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<C
                 .context("Could not get lists from Checkvist API")?;
             p.stop().map_err(|e| anyhow!(e))?;
             if let Some(user_config) = get_config_from_user(available_lists) {
-                if user_yn(&format!(
-                    "Do you want to save '{}' as your new default list?",
-                    user_config.list_name
-                )) {
+                if Confirm::new()
+                    .with_prompt(format!(
+                        "Do you want to save '{}' as yor new default list?",
+                        user_config.list_name
+                    ))
+                    .interact()?
+                {
                     create_new_config_file(&user_config).with_context(|| {
                         format!("Couldn't save config file to path {:?}", config_file_path())
                     })?;
                     println!("'{}' is now your default list", user_config.list_name);
-                };
+                }
+
                 Ok(user_config)
             } else {
                 return Err(anyhow!("Could not collect config info from user"));
@@ -177,11 +183,12 @@ fn get_api_token() -> Result<String> {
     let checkvist_api_token = match get_api_token_from_keyring() {
         Some((_username, password)) => password,
         None => {
+            println!("cvcap is not logged in to Checkvist.\nPlease enter your Checkvist username and OpenAPI key\nYour OpenAPI key is available from https://checkvist.com/auth/profile");
             // get token from Checkvist API
             let token = CheckvistClient::get_token(
                 "https://checkvist.com/".into(),
-                get_user_input("Username:", "Please enter your username <add details>")?,
-                get_user_input("Checkvist OpenAPI key", "Please enter your OpenAPI key (available from https://checkvist.com/auth/profile)")?,
+                Input::new().with_prompt("Checkvist Username").interact_text()?,
+                Password::new().with_prompt("Checkvist OpenAPI key").with_confirmation("Confirm OpenAPI key", "Please enter your OpenAPI key (available from https://checkvist.com/auth/profile)").interact()?,
             )
             .context("Couldn't get token from Checkvist API")?;
 
@@ -262,31 +269,35 @@ fn config_file_path() -> PathBuf {
 }
 
 fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
-    println!("Your lists:\n");
-    for (i, list) in lists.iter().enumerate() {
-        println!("{}: {}", i + 1, list.1);
-    }
-    println!("\n");
+    println!("Pick a list (or hit ESC to cancel)");
 
-    let chosen_list = loop {
-        let chosen_index: usize = get_user_input(
-            &format!(
-                "\nSelect a list by entering a number between 1 and  {}\n",
-                lists.len()
-            ),
-            "",
-        )
-        .unwrap();
-        if let Some(list) = lists.get(chosen_index - 1) {
-            break list;
+    user_choose_list(&lists).map(|list| {
+        println!("You picked list '{}'", list.1);
+        Config {
+            list_id: list.0,
+            list_name: list.1,
+            checkvist_username: None,
         }
-    };
-
-    Some(Config {
-        list_id: chosen_list.0,
-        list_name: chosen_list.1.clone(),
-        checkvist_username: None,
     })
+}
+
+fn user_choose_list(lists: &[(u32, String)]) -> Option<(u32, String)> {
+    let ids: Vec<&str> = lists.iter().map(|list| list.1.as_str()).collect();
+    Select::new()
+        .items(&ids)
+        .interact_opt()
+        // discard error here - nothing we can do so log & continue with None
+        .map_err(|e| error!("{:?}", e))
+        .ok()
+        .flatten()
+        // get list id and name as Ok val
+        .map(|index| {
+            lists
+                .get(index)
+                // if expect isn't safe here it's a lib (dialoguer) bug
+                .expect("Internal error getting list from user")
+                .to_owned()
+        })
 }
 
 fn create_new_config_file(config: &Config) -> Result<()> {
@@ -302,51 +313,4 @@ fn create_new_config_file(config: &Config) -> Result<()> {
     let _file = File::create(config_file_path())?;
     std::fs::write(config_file_path(), json)?;
     Ok(())
-}
-
-/// Get user input, returning any type that can be converted
-/// from a string.
-/// Cycles supplied prompts until input is successful
-/// or an error is returned
-// TODO - RESEARCH NEEDED:
-//      - add a validator (closure presumably but on quick attempt I got in a mess with types)
-fn get_user_input<T: std::str::FromStr>(prompt: &str, correction: &str) -> Result<T> {
-    let user_input = loop {
-        println!("{}", prompt);
-        let mut buf = String::new();
-        std::io::stdin().read_line(&mut buf).map_err(|err| {
-            warn!("Couldn't get user input from stdin");
-            err
-        })?;
-
-        match buf.trim().parse() {
-            Ok(i) => break i,
-            Err(_) => {
-                println!("{}", correction);
-                continue;
-            }
-        };
-    };
-
-    Ok(user_input)
-}
-
-fn user_yn(yes_no_question: &str) -> bool {
-    println!("{} [Y/N]?", yes_no_question);
-
-    loop {
-        let mut buf = String::new();
-        std::io::stdin()
-            .read_line(&mut buf)
-            .expect("Something went badly wrong");
-        let user_input = buf.trim().to_lowercase();
-        match user_input.as_str() {
-            "y" => break true,
-            "n" => break false,
-            _ => {
-                println!("Please answer Y/y or N/n");
-                continue;
-            }
-        }
-    }
 }

@@ -19,6 +19,7 @@ anyhow = "1.0.58"
 log = "0.4.17"
 keyring = "1"
 whoami = "1.2.1"
+dialoguer = "0.10.1"
 
 [dev-dependencies]
 mockito = "0.31.0"
