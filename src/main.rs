@@ -7,10 +7,10 @@ use env_logger::Env;
 use keyring::{
     Entry,
 };
-use log::{error, info, warn};
+use log::{error, debug, info, warn};
 use progress_indicator::ProgressIndicator;
 use serde::{Deserialize, Serialize};
-use std::fs::{self, create_dir, File};
+use std::fs::{self, create_dir_all, File};
 use std::path::PathBuf;
 
 mod progress_indicator;
@@ -77,7 +77,7 @@ fn main() {
                     _ => info!("Expired api token was deleted"),
                 }
             }
-            // TODO: add logging of the full error
+            // TODO: add standard error message for user, explaining how to log (-v) and where to send
             _ => eprintln!("\nError: {}", err),
         }
         std::process::exit(1);
@@ -132,7 +132,7 @@ fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<C
                     "Do you want to save '{}' as your new default list?",
                     user_config.list_name
                 )) {
-                    create_new_config_file(&user_config).context("Couldn't save config file")?;
+                    create_new_config_file(&user_config).with_context(|| format!("Couldn't save config file to path {:?}", config_file_path()))?;
                     println!("'{}' is now your default list", user_config.list_name);
                 };
                 Ok(user_config)
@@ -251,9 +251,11 @@ fn get_config_from_file() -> Option<Config> {
 }
 
 fn config_file_path() -> PathBuf {
-    ProjectDirs::from("com", "not10x", "cvcap")
-        .expect("OS cannot find HOME dir. Cannot proceed")
-        .config_dir()
+    let config_dir = ProjectDirs::from("com", "not10x", "cvcap")
+        .expect("OS cannot find HOME dir. Cannot proceed");
+    // TODO: remove
+    debug!("config dir path: {:?}", config_dir.config_dir());
+    config_dir.config_dir()
         .join(CONFIG_FILE_NAME)
 }
 
@@ -291,7 +293,7 @@ fn create_new_config_file(config: &Config) -> Result<()> {
         .parent()
         .expect("Couldn't construct config path");
     if !config_dir.is_dir() {
-        create_dir(config_dir)?;
+        create_dir_all(config_dir)?;
     }
 
     let json = toml::to_string(config)?;

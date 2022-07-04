@@ -36,7 +36,7 @@
       turned out to be a config webdav issue: https://gitlab.gnome.org/GNOME/gnome-boxes/-/issues/353
       It would be easier to use a reliable VM rather than the ideapad
       (although could this just be a misleading description of problem running 64bit exe on 32 bit cpu?)
-* [ ] move unit tests in lib.rs to integration tests (now we have hte callback, we don't need direct access to the token)
+* [X] ~~*move unit tests in lib.rs to integration tests (now we have hte callback, we don't need direct access to the token)*~~ [2022-07-04]
 * [ ] add verbose error logging option
   * https://crates.io/crates/clap-verbosity-flag
 * [ ] fix: "couldn't save config file" on windows
