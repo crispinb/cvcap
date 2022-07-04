@@ -6,7 +6,7 @@ use dialoguer::{Confirm, Input, Password, Select};
 use directories::ProjectDirs;
 use env_logger::Env;
 use keyring::Entry;
-use log::{debug, error, info, warn};
+use log::{error, info};
 use progress_indicator::ProgressIndicator;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all, File};
@@ -134,7 +134,7 @@ fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<C
             if let Some(user_config) = get_config_from_user(available_lists) {
                 if Confirm::new()
                     .with_prompt(format!(
-                        "Do you want to save '{}' as yor new default list?",
+                        "Do you want to save '{}' as your new default list?",
                         user_config.list_name
                     ))
                     .interact()?
