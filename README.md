@@ -37,10 +37,15 @@
       It would be easier to use a reliable VM rather than the ideapad
       (although could this just be a misleading description of problem running 64bit exe on 32 bit cpu?)
 * [X] ~~*move unit tests in lib.rs to integration tests (now we have hte callback, we don't need direct access to the token)*~~ [2022-07-04]
-* [ ] add verbose error logging option
+* [X] ~~*add verbose error logging option*~~ [2022-07-04]
   * https://crates.io/crates/clap-verbosity-flag
-* [ ] fix: "couldn't save config file" on windows
+    Rejected as too complex to do what I want: no logging by default, and (later) a 'quiet' option which turns off interaction
+     as well as logging messages (for scripting)
+* [X] ~~*fix: "couldn't save config file" on windows*~~ [2022-07-04]
+* [X] ~~*add '-v' option to change logging to 'debug' level (others can still work via RUST_LOG). Still no logging by default*~~ [2022-07-04] 
+      User should only see the interactions we have specifically decided on for each interaction
 * [ ] fix: passwords displayed during input
+      This proves a bit complex. Replace all prompts with https://docs.rs/dialoguer/latest/dialoguer/
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
     lib - checkvist-api
     bin - cvcap (and later perhaps cvconv and chrello)
@@ -50,6 +55,7 @@
 - [ ] print status instead of help
   *  https://github.com/clap-rs/clap/discussions/3871
      (so far I can't make head or tail of how to do this)
+     Maybe just add an -s --status option (or command)?
 * [ ] choose license on github
 * [ ] check .git for old secrets
 * [ ] install / deploy

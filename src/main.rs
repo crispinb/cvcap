@@ -4,10 +4,8 @@ use clap::Parser;
 use cvcap::{CheckvistClient, CheckvistError, Task};
 use directories::ProjectDirs;
 use env_logger::Env;
-use keyring::{
-    Entry,
-};
-use log::{error, debug, info, warn};
+use keyring::Entry;
+use log::{debug, error, info, warn};
 use progress_indicator::ProgressIndicator;
 use serde::{Deserialize, Serialize};
 use std::fs::{self, create_dir_all, File};
@@ -35,15 +33,18 @@ const BANNER: &str = r"
 #[derive(Parser, Debug)]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
 struct Cli {
-    /// The task you wish to add to your default list (you'll be prompted if there isn't one yet)
+    /// The task you wish to add to your default list (you'll be prompted if you don't have one yet)
     #[clap(name = "task text")]
     task_content: String,
-    /// Choose list to add task to (ie. other than your default list)
+    /// Choose a list to add a new task to (ie. other than your default list)
     #[clap(short = 'l', long)]
     choose_list: bool,
-    /// Use text from clipboard instead of command line argument
+    /// Add a task from the clipboard instead of the command line
     #[clap(short = 'c', long)]
     from_clipboard: bool,
+    /// Enable (very) verbose logging. In case of trouble
+    #[clap(short = 'v', long = "verbose")]
+    verbose: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -56,13 +57,14 @@ struct Config {
 }
 
 fn main() {
-    // no log output by default
-    env_logger::Builder::from_env(Env::default().default_filter_or("OFF")).init();
-
     // I'd rather print this after the message Cli::parse prints, but the latter
     // exits on error (eg. lacking compulsory args)
     println!("{}", get_status());
     let cli = Cli::parse();
+
+    // no log output by default. Overridden by -v flag (which sets to debug), or RUST_LOG env var
+    let log_level = if cli.verbose { "DEBUG" } else { "OFF" };
+    env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
 
     if let Err(err) = get_api_client().and_then(|client| {
         get_config(&client, cli.choose_list).and_then(|config| run_command(cli, config, &client))
@@ -132,7 +134,9 @@ fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<C
                     "Do you want to save '{}' as your new default list?",
                     user_config.list_name
                 )) {
-                    create_new_config_file(&user_config).with_context(|| format!("Couldn't save config file to path {:?}", config_file_path()))?;
+                    create_new_config_file(&user_config).with_context(|| {
+                        format!("Couldn't save config file to path {:?}", config_file_path())
+                    })?;
                     println!("'{}' is now your default list", user_config.list_name);
                 };
                 Ok(user_config)
@@ -166,7 +170,7 @@ fn get_api_client() -> Result<CheckvistClient> {
 //                  username from the user. We could then store it in the config, but seems like
 //                  an unnecessary step.
 // Errors if we can't get token from either keyring or Checkvist API
-// TODO: check/extend for Windows & MacOS
+// TODO: check/extend for MacOS
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
 fn get_api_token() -> Result<String> {
     // retrieve checkvist username and password from keyring if exists
@@ -177,7 +181,7 @@ fn get_api_token() -> Result<String> {
             let token = CheckvistClient::get_token(
                 "https://checkvist.com/".into(),
                 get_user_input("Username:", "Please enter your username <add details>")?,
-                get_user_input("remote key TBD more info", "do it")?,
+                get_user_input("Checkvist OpenAPI key", "Please enter your OpenAPI key (available from https://checkvist.com/auth/profile)")?,
             )
             .context("Couldn't get token from Checkvist API")?;
 
@@ -251,11 +255,9 @@ fn get_config_from_file() -> Option<Config> {
 }
 
 fn config_file_path() -> PathBuf {
-    let config_dir = ProjectDirs::from("com", "not10x", "cvcap")
-        .expect("OS cannot find HOME dir. Cannot proceed");
-    // TODO: remove
-    debug!("config dir path: {:?}", config_dir.config_dir());
-    config_dir.config_dir()
+    ProjectDirs::from("com", "not10x", "cvcap")
+        .expect("OS cannot find HOME dir. Cannot proceed")
+        .config_dir()
         .join(CONFIG_FILE_NAME)
 }
 
