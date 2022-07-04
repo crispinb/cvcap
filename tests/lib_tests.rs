@@ -57,8 +57,8 @@ fn authentication_failure_results_in_token_refresh_attempt_then_redo() {
     let response_json = serde_json::to_string(&expected_list).unwrap();
     let mock_success_auth = new_mock_get("/checklists/1.json", new_token, response_json);
 
-    // TODO: could change the new() callback to be a closure so it can capture 'token' rather than use literal here
-    let client = CheckvistClient::new(mockito::server_url(), old_token.into(), |token| assert_eq!(token, "token") );
+    // TODO: could change the new() callback to be a closure so it can capture 'new_token' rather than use literal here
+    let client = CheckvistClient::new(mockito::server_url(), old_token.into(), |token| assert_eq!(token, "token", "token refresh callback received wrong token value") );
     let result = client.get_list(1);
 
     mock_failed_auth.assert();
@@ -175,6 +175,40 @@ fn add_task() {
     assert_eq!(task, returned_task);
 }
 
+    #[test]
+    // curl --json '{"old_token": ""}'  "https://checkvist.com/auth/refresh_token.json?version=2"
+    fn refresh_auth_token() {
+        let old_token = "token";
+        let new_token = "new token";
+        let request_body =
+            serde_json::to_value(&HashMap::from([("old_token", old_token)])).unwrap();
+        let response_body = serde_json::to_string(&HashMap::from([("token", new_token)])).unwrap();
+        let mock = mock("POST", "/auth/refresh_token.json?version=2")
+            .match_body(Matcher::Json(request_body))
+            .with_body(response_body)
+            .create();
+
+        let client = CheckvistClient::new(mockito::server_url(), "token".to_string(), |t| assert_eq!(t, "new token", "Token refresh closure received unexpected token") );
+
+        client.refresh_token().unwrap();
+
+        mock.assert();
+    }
+
+    #[test]
+    fn refresh_auth_token_error_on_failure() {
+        let request_body = serde_json::to_value(HashMap::from([("old_token", "token")])).unwrap();
+        let mock = mock("POST", "/auth/refresh_token.json?version=2")
+            .match_body(Matcher::Json(request_body))
+            .with_status(401)
+            .create();
+        let client = CheckvistClient::new(mockito::server_url(), "token".to_string(), |_t| ());
+
+        let err = client.refresh_token().unwrap_err();
+
+        mock.assert();
+        assert!(std::matches!(err, CheckvistError::TokenRefreshFailedError));
+    }
 // Utilities
 fn new_mock_get(url: &str, token_to_match: &str, response_body: String) -> mockito::Mock {
     mock("GET", url)

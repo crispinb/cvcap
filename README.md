@@ -1,8 +1,3 @@
-  _   _   _   _   _  
- / \ / \ / \ / \ / \ 
-( c | v | c | a | p )
- \_/ \_/ \_/ \_/ \_/ 
-
 # Aims
 * Simple cli for Checkvist, with main focus on quick capture (eg of clipboard) to a (preconfigured) list
 * ?A service/daemon to run locally, accessed via OS ports, or Web sockets, or HTTP 
@@ -35,9 +30,17 @@
   * [X] ~~*send errors to stderr (I think they are already?)*~~ [2022-07-01]
 * [X] ~~*write a simple progress indicator using a thread (ie. don't need to pull in tokio etc)*~~ [2022-07-02]
 * [X] ~~*build & test on win using cross*~~ [2022-07-02]
-* [ ] fix: passwords displayed during input
+* [X] ~~*look into file sharing on windows VM (rust bins don't currently run, but I think it might be*~~ [2022-07-03] 
+      a file copy/save error to do with the webdav spice client)
+      "The file size exceeds the limit allowed and cannot be saved."
+      turned out to be a config webdav issue: https://gitlab.gnome.org/GNOME/gnome-boxes/-/issues/353
+      It would be easier to use a reliable VM rather than the ideapad
+      (although could this just be a misleading description of problem running 64bit exe on 32 bit cpu?)
+* [ ] move unit tests in lib.rs to integration tests (now we have hte callback, we don't need direct access to the token)
 * [ ] add verbose error logging option
+  * https://crates.io/crates/clap-verbosity-flag
 * [ ] fix: "couldn't save config file" on windows
+* [ ] fix: passwords displayed during input
 * [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
     lib - checkvist-api
     bin - cvcap (and later perhaps cvconv and chrello)

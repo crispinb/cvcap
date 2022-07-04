@@ -104,7 +104,6 @@ enum ApiResponse<T> {
 pub struct CheckvistClient {
     base_url: Url,
     api_token: RefCell<String>,
-    // TODO: why might we need a closure sig instead?
     token_refresh_callback: fn(&str) -> (), 
 }
 
@@ -306,48 +305,5 @@ impl CheckvistClient {
         base_url
             .join(&segments.concat())
             .expect("Error building endpoing (shouldn't happen as base_url is known good")
-    }
-}
-
-mod test {
-    #![cfg(test)]
-    use super::*;
-    use mockito::{mock, Matcher};
-    use std::collections::HashMap;
-
-    #[test]
-    // curl --json '{"old_token": ""}'  "https://checkvist.com/auth/refresh_token.json?version=2"
-    fn refresh_auth_token() {
-        let old_token = "token";
-        let new_token = "new token";
-        let request_body =
-            serde_json::to_value(&HashMap::from([("old_token", old_token)])).unwrap();
-        let response_body = serde_json::to_string(&HashMap::from([("token", new_token)])).unwrap();
-        let mock = mock("POST", "/auth/refresh_token.json?version=2")
-            .match_body(Matcher::Json(request_body))
-            .with_body(response_body)
-            .create();
-
-        let client = CheckvistClient::new(mockito::server_url(), "token".to_string(), |_t| () );
-
-        client.refresh_token().unwrap();
-
-        mock.assert();
-        assert_eq!(new_token, *client.api_token.borrow());
-    }
-
-    #[test]
-    fn refresh_auth_token_error_on_failure() {
-        let request_body = serde_json::to_value(HashMap::from([("old_token", "token")])).unwrap();
-        let mock = mock("POST", "/auth/refresh_token.json?version=2")
-            .match_body(Matcher::Json(request_body))
-            .with_status(401)
-            .create();
-        let client = CheckvistClient::new(mockito::server_url(), "token".to_string(), |_t| ());
-
-        let err = client.refresh_token().unwrap_err();
-
-        mock.assert();
-        assert!(std::matches!(err, CheckvistError::TokenRefreshFailedError));
     }
 }

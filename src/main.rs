@@ -77,6 +77,7 @@ fn main() {
                     _ => info!("Expired api token was deleted"),
                 }
             }
+            // TODO: add logging of the full error
             _ => eprintln!("\nError: {}", err),
         }
         std::process::exit(1);
