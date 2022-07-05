@@ -44,7 +44,7 @@ struct Cli {
     // /// Add a task from the clipboard instead of the command line
     // #[clap(short = 'c', long)]
     // from_clipboard: bool,
-    /// Enable (very) verbose logging. In case of trouble
+    /// Enable verbose logging. In case of trouble
     #[clap(short = 'v', long = "verbose")]
     verbose: bool,
     #[clap(subcommand)]
@@ -77,13 +77,16 @@ fn main() {
         error!("Fatal error. Root cause: {:?}", err.root_cause());
         match err.root_cause().downcast_ref() {
             Some(CheckvistError::TokenRefreshFailedError) => {
-                eprintln!("You have been logged out of the Checkvist API.\nPlease run cvcap again to log back in");
+                eprintln!(r#"
+    You have been logged out of the Checkvist API.
+    Please run cvcap again to log back in"#);
                 match delete_api_token() {
                     Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
                     _ => info!("Expired api token was deleted"),
                 }
             }
-            _ => eprintln!(r#"Error: {}
+            _ => eprintln!(r#"
+    Error: {}
 
     If you want to report this, fill out an issue at 
     {}.
@@ -190,11 +193,6 @@ fn get_api_client() -> Result<CheckvistClient> {
 /// Gets Checkvist API token (see https://checkvist.com/auth/api#task_data)
 /// - first attempts from local machine keyring
 /// - if not available, then asks user for username/pw & gets from checkvist API, storing on keyring)
-// TAG - decision:  use OS username as key to store creds (rather than the more obvious Checkvist username)
-//     - rationale: to retrieve api token without always prompting user, we need quick access to a key
-//                  for the creds (keyring crate's 'username'). We can only get the checkvist
-//                  username from the user. We could then store it in the config, but seems like
-//                  an unnecessary step.
 // Errors if we can't get token from either keyring or Checkvist API
 // TODO: check/extend for MacOS
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
