@@ -14,12 +14,9 @@
 * download a binary from [ Releases ](https://github.com/crispinb/cvcap/releases)
     
     Currently available for Linux, Windows
-* For Rust users: 
-
-  `cargo install --git  git@github.com:crispinb/cvcap.git`
 
 ## Future plans
-This is an intentionally simple tool to quickly capture text tasks Checkvist, so I'll keep it simple, but some features I expect to add are:
+This is an intentionally simple tool to quickly capture text tasks Checkvist. It will likely remain unpolished but serviceable. A few additional features I expect to add are:
 * capture task text from clipboard or stdin
 * a MacOS build
 * a completely quiet option for scripting use
