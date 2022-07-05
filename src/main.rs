@@ -21,6 +21,7 @@ mod progress_indicator;
 // - info: transient info for debugging
 
 static CONFIG_FILE_NAME: &str = "cvcap.toml";
+static GITHUB_ISSUES_URL: &str = "https://github.com/crispinb/cvcap/issues";
 const BANNER: &str = r"                           
   _   _   _   _   _  
  / \ / \ / \ / \ / \ 
@@ -82,8 +83,14 @@ fn main() {
                     _ => info!("Expired api token was deleted"),
                 }
             }
-            // TODO: add standard error message for user, explaining how to log (-v) and where to send
-            _ => eprintln!("\nError: {}", err),
+            _ => eprintln!(r#"Error: {}
+
+    If you want to report this, fill out an issue at 
+    {}.
+    To gather more details that might help solve issue, 
+    run the same command again with the '-v' switch,
+    and copy the output into the issue.
+            "#, err, GITHUB_ISSUES_URL ),
         }
         std::process::exit(1);
     }

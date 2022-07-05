@@ -51,6 +51,7 @@
      (so far I can't make head or tail of how to do this)
      Maybe just add an -s --status option (or command)?
 * [ ] consolidate (or decide on) error! and/or .context for best way to report fatal errors
+   * [ ] add proper generic user-facing error
    * [ ] add more debug/trace logging 
    * [ ] test all interactively (trigger all errors)
    * look for places where logged in / config'd status should be reported
@@ -58,12 +59,14 @@
   * choose license 
   * check .git for old secrets
   * split README / todo
-  * add release checklist
+  * set up issues with:
+    * [ ] bug: windows check & cross don't display in cmd
+    * [ ] bug: `cvcap -v` (should be disallowed)
 * [ ] install / deploy
   * binary releases (on github) for lin / win / (? mac)
-  * cargo install from github?
-* [ ] tidy output
-* [ ] bug: `cvcap -v`
+    * add release checklist
+  * test cargo install from github
+* mention on discuss.checkvist.com
 
 ## post 1st release
 * [ ] automate cli interaction testing? (via nushell? Or something rusty?)
