@@ -16,7 +16,7 @@
     Currently available for Linux, Windows
 
 ## Future plans
-This is an intentionally simple tool to quickly capture text tasks Checkvist. It will likely remain unpolished but serviceable. A few additional features I expect to add are:
+This is an intentionally simple tool to quickly capture text tasks to Checkvist. It will likely remain unpolished but serviceable. A few additional features I expect to add are:
 * capture task text from clipboard or stdin
 * a MacOS build
 * a completely quiet option for scripting use
