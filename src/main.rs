@@ -20,8 +20,8 @@ mod progress_indicator;
 // - warn: recoverable errors
 // - info: transient info for debugging
 
-static CONFIG_FILE_NAME: &str = "cvcap.toml";
-static GITHUB_ISSUES_URL: &str = "https://github.com/crispinb/cvcap/issues";
+const CONFIG_FILE_NAME: &str = "cvcap.toml";
+const GITHUB_ISSUES_URL: &str = "https://github.com/crispinb/cvcap/issues";
 const BANNER: &str = r"                           
   _   _   _   _   _  
  / \ / \ / \ / \ / \ 
@@ -77,15 +77,33 @@ fn main() {
         error!("Fatal error. Root cause: {:?}", err.root_cause());
         match err.root_cause().downcast_ref() {
             Some(CheckvistError::TokenRefreshFailedError) => {
-                eprintln!(r#"
-    You have been logged out of the Checkvist API.
-    Please run cvcap again to log back in"#);
+                display_logged_out_message();
                 match delete_api_token() {
                     Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
                     _ => info!("Expired api token was deleted"),
                 }
             }
-            _ => eprintln!(r#"
+            _ => display_error(err),
+        }
+        std::process::exit(1);
+    }
+
+    std::process::exit(0);
+}
+
+#[inline(always)]
+fn display_logged_out_message() {
+    eprintln!(
+        r#"
+    You have been logged out of the Checkvist API.
+    Please run cvcap again to log back in"#
+    );
+}
+
+#[inline(always)]
+fn display_error(err: anyhow::Error) {
+    eprintln!(
+        r#"
     Error: {}
 
     If you want to report this, fill out an issue at 
@@ -93,12 +111,9 @@ fn main() {
     To gather more details that might help solve issue, 
     run the same command again with the '-v' switch,
     and copy the output into the issue.
-            "#, err, GITHUB_ISSUES_URL ),
-        }
-        std::process::exit(1);
-    }
-
-    std::process::exit(0);
+            "#,
+        err, "https://github.com/crispinb/cvcap/issues"
+    )
 }
 
 fn run_command(cli: Cli) -> Result<(), Error> {
@@ -119,7 +134,6 @@ fn run_command(cli: Cli) -> Result<(), Error> {
             let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
             p.start()?;
 
-            // start a thread that writes at time intervals
             let _returned_task = client
                 .add_task(config.list_id, task)
                 .context("Couldn't add task to list using Checkvist API")?;
@@ -127,7 +141,7 @@ fn run_command(cli: Cli) -> Result<(), Error> {
             p.stop().map_err(|e| anyhow!(e))?;
 
             Ok(())
-        },
+        }
         None => match cli.command {
             Some(Commands::ShowStatus) => {
                 println!("{}", get_status());

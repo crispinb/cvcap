@@ -99,8 +99,6 @@ enum ApiResponse<T> {
 //     }
 // }
 
-/// Manages token refreshing automatically,
-/// so generally will need to be mut
 pub struct CheckvistClient {
     base_url: Url,
     api_token: RefCell<String>,
