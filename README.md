@@ -46,14 +46,14 @@
       User should only see the interactions we have specifically decided on for each interaction
 * [X] ~~*fix: passwords displayed during input*~~ [2022-07-04]
       This proves a bit complex. Replace all prompts with https://docs.rs/dialoguer/latest/dialoguer/
+- [X] ~~*print status instead of help*~~ [2022-07-05]
+  *  https://github.com/clap-rs/clap/discussions/3871
+     (so far I can't make head or tail of how to do this)
+     Maybe just add an -s --status option (or command)?
 * [ ] consolidate (or decide on) error! and/or .context for best way to report fatal errors
    * [ ] add more debug/trace logging 
    * [ ] test all interactively (trigger all errors)
    * look for places where logged in / config'd status should be reported
-- [ ] print status instead of help
-  *  https://github.com/clap-rs/clap/discussions/3871
-     (so far I can't make head or tail of how to do this)
-     Maybe just add an -s --status option (or command)?
 * [ ] release on github
   * choose license 
   * check .git for old secrets
@@ -63,6 +63,7 @@
   * binary releases (on github) for lin / win / (? mac)
   * cargo install from github?
 * [ ] tidy output
+* [ ] bug: `cvcap -v`
 
 ## post 1st release
 * [ ] automate cli interaction testing? (via nushell? Or something rusty?)

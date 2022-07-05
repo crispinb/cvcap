@@ -1,6 +1,5 @@
-// #![allow(unused_imports, unused_variables)]
 use anyhow::{anyhow, Context, Error, Result};
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use cvcap::{CheckvistClient, CheckvistError, Task};
 use dialoguer::{Confirm, Input, Password, Select};
 use directories::ProjectDirs;
@@ -33,10 +32,11 @@ const BANNER: &str = r"
 
 #[derive(Parser, Debug)]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
+#[clap(args_conflicts_with_subcommands = true, arg_required_else_help = true)]
 struct Cli {
-    /// Add this text as a new task to your default list (you'll be prompted if you don't have one yet)
+    /// Add a new task to your default list (you'll be prompted if you don't have one yet)
     #[clap(name = "task text")]
-    task_content: String,
+    task_content: Option<String>,
     /// Choose a list to add a new task to (ie. other than your default list)
     #[clap(short = 'l', long)]
     choose_list: bool,
@@ -46,6 +46,15 @@ struct Cli {
     /// Enable (very) verbose logging. In case of trouble
     #[clap(short = 'v', long = "verbose")]
     verbose: bool,
+    #[clap(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Check whether cvcap is logged in, and if it has a default list set
+    #[clap(name = "status")]
+    ShowStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -57,21 +66,14 @@ struct Config {
 }
 
 fn main() {
-    // I'd rather print this after the message Cli::parse prints, but the latter
-    // exits on error (eg. lacking compulsory args)
-    // TODO: just emit as a new command?
-    // println!("{}", get_status());
     let cli = Cli::parse();
 
     // no log output by default. Overridden by -v flag (which sets to debug), or RUST_LOG env var
     let log_level = if cli.verbose { "DEBUG" } else { "OFF" };
     env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
 
-    if let Err(err) = get_api_client().and_then(|client| {
-        get_config(&client, cli.choose_list).and_then(|config| run_command(cli, config, &client))
-    }) {
+    if let Err(err) = run_command(cli) {
         error!("Fatal error. Root cause: {:?}", err.root_cause());
-
         match err.root_cause().downcast_ref() {
             Some(CheckvistError::TokenRefreshFailedError) => {
                 eprintln!("You have been logged out of the Checkvist API.\nPlease run cvcap again to log back in");
@@ -89,34 +91,52 @@ fn main() {
     std::process::exit(0);
 }
 
-fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(), Error> {
-    let task = Task {
-        id: None,
-        content: cli.task_content,
-        position: 1,
-    };
+fn run_command(cli: Cli) -> Result<(), Error> {
+    match cli.task_content {
+        Some(content) => {
+            let client = get_api_client()?;
+            let config = get_config(&client, cli.choose_list)?;
+            let task = Task {
+                id: None,
+                content,
+                position: 1,
+            };
 
-    let add_task_msg = format!(
-        r#"Adding task "{}" to list "{}""#,
-        task.content, config.list_name
-    );
-    let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
-    p.start()?;
+            let add_task_msg = format!(
+                r#"Adding task "{}" to list "{}""#,
+                task.content, config.list_name
+            );
+            let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
+            p.start()?;
 
-    // start a thread that writes at time intervals
-    let _returned_task = client
-        .add_task(config.list_id, task)
-        .context("Couldn't add task to list using Checkvist API")?;
+            // start a thread that writes at time intervals
+            let _returned_task = client
+                .add_task(config.list_id, task)
+                .context("Couldn't add task to list using Checkvist API")?;
 
-    p.stop().map_err(|e| anyhow!(e))?;
+            p.stop().map_err(|e| anyhow!(e))?;
 
-    Ok(())
+            Ok(())
+        },
+        None => match cli.command {
+            Some(Commands::ShowStatus) => {
+                println!("{}", get_status());
+                Ok(())
+            }
+            None => {
+                error!("is arg_required_else_help not set?");
+                Err(anyhow!("Sorry something went wrong that should not have"))
+            }
+        },
+    }
 }
 
 fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
     match (get_config_from_file(), user_chooses_new_list) {
         (_, true) | (None, false) => {
-            if !user_chooses_new_list { println!("No default list configured")};
+            if !user_chooses_new_list {
+                println!("No default list configured")
+            };
             let mut p = ProgressIndicator::new(".", "Fetching lists from Checkvist ", "", 250);
             p.start()?;
             let available_lists: Vec<(u32, String)> = client
@@ -213,25 +233,27 @@ fn get_api_token_from_keyring() -> Option<(String, String)> {
 }
 
 fn get_status() -> String {
-    let mut status_text = String::from("\ncvcap current status:\n");
+    let mut status_text = String::from("\n    - logged in to Checkvist: \t");
     match get_api_token_from_keyring() {
         Some((_username, _token)) => {
-            status_text.push_str("\t - logged in to Checkvist\n");
+            status_text.push('✅');
         }
         None => {
-            status_text.push_str("\t - not logged in to Checkvist\n");
+            status_text.push('❌');
         }
     }
+
+    status_text.push('\n');
+    status_text.push_str("    - default list: \t\t");
     match get_config_from_file() {
         Some(config) => {
-            status_text.push_str("\t - default list: ");
             status_text.push_str(&config.list_name);
-            status_text.push('\n');
         }
         None => {
-            status_text.push_str("\t - no default list yet configured\n");
+            status_text.push('❌');
         }
     }
+    status_text.push('\n');
 
     status_text
 }
