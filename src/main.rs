@@ -34,15 +34,15 @@ const BANNER: &str = r"
 #[derive(Parser, Debug)]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
 struct Cli {
-    /// The task you wish to add to your default list (you'll be prompted if you don't have one yet)
+    /// Add this text as a new task to your default list (you'll be prompted if you don't have one yet)
     #[clap(name = "task text")]
     task_content: String,
     /// Choose a list to add a new task to (ie. other than your default list)
     #[clap(short = 'l', long)]
     choose_list: bool,
-    /// Add a task from the clipboard instead of the command line
-    #[clap(short = 'c', long)]
-    from_clipboard: bool,
+    // /// Add a task from the clipboard instead of the command line
+    // #[clap(short = 'c', long)]
+    // from_clipboard: bool,
     /// Enable (very) verbose logging. In case of trouble
     #[clap(short = 'v', long = "verbose")]
     verbose: bool,
@@ -54,14 +54,13 @@ struct Config {
     list_id: u32,
     #[serde(rename = "default_list_name")]
     list_name: String,
-    checkvist_username: Option<String>,
 }
 
 fn main() {
     // I'd rather print this after the message Cli::parse prints, but the latter
     // exits on error (eg. lacking compulsory args)
     // TODO: just emit as a new command?
-    println!("{}", get_status());
+    // println!("{}", get_status());
     let cli = Cli::parse();
 
     // no log output by default. Overridden by -v flag (which sets to debug), or RUST_LOG env var
@@ -91,23 +90,17 @@ fn main() {
 }
 
 fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(), Error> {
-    if cli.from_clipboard {
-        println!("Clipboard support coming soon!");
-        std::process::exit(0);
-    }
-
     let task = Task {
         id: None,
         content: cli.task_content,
         position: 1,
     };
 
-    println!(
+    let add_task_msg = format!(
         r#"Adding task "{}" to list "{}""#,
         task.content, config.list_name
     );
-
-    let mut p = ProgressIndicator::new(".", "Task added", 250);
+    let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
     p.start()?;
 
     // start a thread that writes at time intervals
@@ -123,8 +116,8 @@ fn run_command(cli: Cli, config: Config, client: &CheckvistClient) -> Result<(),
 fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
     match (get_config_from_file(), user_chooses_new_list) {
         (_, true) | (None, false) => {
-            println!("Fetching lists from Checkvist");
-            let mut p = ProgressIndicator::new(".", "", 250);
+            if !user_chooses_new_list { println!("No default list configured")};
+            let mut p = ProgressIndicator::new(".", "Fetching lists from Checkvist ", "", 250);
             p.start()?;
             let available_lists: Vec<(u32, String)> = client
                 .get_lists()
@@ -134,7 +127,7 @@ fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<C
             if let Some(user_config) = get_config_from_user(available_lists) {
                 if Confirm::new()
                     .with_prompt(format!(
-                        "Do you want to save '{}' as your new default list?",
+                        "Do you want to save '{}' as your default list for future task capture?",
                         user_config.list_name
                     ))
                     .interact()?
@@ -276,7 +269,6 @@ fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
         Config {
             list_id: list.0,
             list_name: list.1,
-            checkvist_username: None,
         }
     })
 }

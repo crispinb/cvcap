@@ -46,38 +46,38 @@
       User should only see the interactions we have specifically decided on for each interaction
 * [X] ~~*fix: passwords displayed during input*~~ [2022-07-04]
       This proves a bit complex. Replace all prompts with https://docs.rs/dialoguer/latest/dialoguer/
-* [ ] before deployment stuff, consider how to split API crate and bin (we'll need the crate for the Trelloish UI), but without putting on crates.io. Can cargo.toml deps be added from github? Or local relative paths?
-    lib - checkvist-api
-    bin - cvcap (and later perhaps cvconv and chrello)
-    NB - remember the 2 will need different deps
 * [ ] consolidate (or decide on) error! and/or .context for best way to report fatal errors
-   * [ ] test all interactively
+   * [ ] add more debug/trace logging 
+   * [ ] test all interactively (trigger all errors)
+   * look for places where logged in / config'd status should be reported
 - [ ] print status instead of help
   *  https://github.com/clap-rs/clap/discussions/3871
      (so far I can't make head or tail of how to do this)
      Maybe just add an -s --status option (or command)?
-* [ ] choose license on github
-* [ ] check .git for old secrets
+* [ ] release on github
+  * choose license 
+  * check .git for old secrets
+  * split README / todo
+  * add release checklist
 * [ ] install / deploy
-  * cargo install
   * binary releases (on github) for lin / win / (? mac)
-    * set up github actions + releases to deploy downloadable binary
-    * https://github.com/cross-rs/cross/wiki/FAQ#github-workflows 
-      use `cross` in github actions
+  * cargo install from github?
 * [ ] tidy output
-* [ ] quiet output for scripting
 
 ## post 1st release
-* [ ] automate cli interaction error testing?
+* [ ] automate cli interaction testing? (via nushell? Or something rusty?)
+* [ ] quiet output for scripting
 * [ ] windows installer
   * [ ] set up file sharing with the quickemu VM for testing
   * [ ] create with wixtools
 * [ ] find a way to merge checkvist GET and POST methods
    see stash@{0}: On main: Failed attempt to merge GET and POST checkvist API methods
 * [ ] replace re-login approach (instead of asking user to run again, launch login immediately on user confirmation)
-* [ ] capture from stdin (eg `cat file | cvcap add`)
 * [ ] set up CI (github actions will be fine)
+    * https://github.com/cross-rs/cross/wiki/FAQ#github-workflows 
+      use `cross` in github actions
 * [ ] capture from clipboard (can this be made all-platform?) `cvcap add --from-clipboard` [or -c]
+* [ ] capture from stdin (eg `cat file | cvcap add`)
   - how to turn off main 'task' content requirement (which would conflict with the clipboard content)?
 * [ ] add user feedback during network calls (spinner? but wouldn't that need async? I could do it on a thread I guess)
 * [X] ~~*stop env_logger logging errors when there's no RUST_LOG set (should be entirely opt-in)*~~ [2022-06-26]
@@ -114,7 +114,7 @@
 * https://rust-cli.github.io/book/in-depth/machine-communication.html 
   how to tailor std/error out for scripting use
 
-## cli UI
+### cli UI
 + https://rust-cli.github.io/book/index.html
 * https://crates.io/crates/tui
 * https://crates.io/crates/cursive
@@ -124,6 +124,11 @@
   In additiion to the wasm stuff, he uses TUI which might be usefully instructive. Looks difficult though.
 * https://crates.io/crates/human-panic
   Set up a panic handler for user  output 
+
+### cli Integration testing
+* https://mattgathu.github.io/2017/10/01/testing-rust-cli-apps.html
+* https://github.com/dylanmckay/lit
+* https://github.com/assert-rs/assert_cmd
 
 ## Release / packaging
 * https://rust-cli.github.io/book/tutorial/packaging.html
@@ -135,6 +140,9 @@
 
 
 
-## Windows VM
+## VM
+### Windows 
 * https://docs.fedoraproject.org/en-US/quick-docs/getting-started-with-virtualization/ 
 * https://ask.fedoraproject.org/t/which-vm-for-a-windows-guest-in-2022/23242/2
+### Mac
+* https://www.google.com/search?client=firefox-b-d&q=macos+in+gnome+boxes

@@ -6,16 +6,18 @@ use std::thread::{self, JoinHandle};
 pub struct ProgressIndicator {
     tx: Option<Sender<()>>,
     handle: Option<JoinHandle<()>>,
+    start_message: String,
     display_char: String,
     bye_message: String,
     display_interval_ms: u16,
 }
 
 impl ProgressIndicator {
-    pub fn new(display_char: &str, bye_message: &str, interval: u16) -> ProgressIndicator {
+    pub fn new(display_char: &str, start_message: &str, bye_message: &str, interval: u16) -> ProgressIndicator {
         ProgressIndicator {
             tx: None,
             handle: None,
+            start_message: start_message.into(),
             bye_message: bye_message.into(),
             display_char: display_char.into(),
             display_interval_ms: interval,
@@ -23,6 +25,7 @@ impl ProgressIndicator {
     }
 
     pub fn start(&mut self) -> Result<(), std::io::Error> {
+        print!("{}", self.start_message);
         let (tx, rx) = mpsc::channel::<()>();
         self.tx = Some(tx);
         let interval: u64 = self.display_interval_ms.into();
