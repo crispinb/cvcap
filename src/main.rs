@@ -21,7 +21,6 @@ mod progress_indicator;
 // - info: transient info for debugging
 
 const CONFIG_FILE_NAME: &str = "cvcap.toml";
-const GITHUB_ISSUES_URL: &str = "https://github.com/crispinb/cvcap/issues";
 const BANNER: &str = r"                           
   _   _   _   _   _  
  / \ / \ / \ / \ / \ 
@@ -45,7 +44,7 @@ struct Cli {
     // #[clap(short = 'c', long)]
     // from_clipboard: bool,
     /// Enable verbose logging. In case of trouble
-    #[clap(short = 'v', long = "verbose")]
+    #[clap(short = 'v', long = "verbose", requires = "task text")]
     verbose: bool,
     #[clap(subcommand)]
     command: Option<Commands>,

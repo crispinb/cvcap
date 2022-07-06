@@ -6,8 +6,10 @@ use std::vec;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-// TODO: If we don't need PartialEq other than for tests, conditionally compile attribute for tests only https://doc.rust-lang.org/reference/conditional-compilation.html.
 #[derive(PartialEq, Debug, Deserialize, Serialize)]
+// only need PartialEq for test, but this doesn't work
+// because: integration tests build differently?
+// #[cfg_attr(all(test), derive(PartialEq))]
 pub struct Checklist {
     pub id: u32,
     pub name: String,
