@@ -18,10 +18,16 @@
 ## Future plans
 This is an intentionally simple tool to quickly capture text tasks to Checkvist. It will likely remain unpolished but serviceable. A few additional features I expect to add are:
 * capture task text from clipboard or stdin
-* a MacOS build
 * a completely quiet option for scripting use
 
-And more speculative possibilities:
+### More speculative possibilities:
 * adding non-text MIME types from files or clipboard
 * richer Checkvist content (notes, attachments, due dates, priorities) 
 * add task to somewhere other than the top of the list
+
+### Unlikely, shelved, or abandoned
+* a MacOS build
+  
+  Has proved too much of a headache, at least for now. I build for non-Linux platforms using [cross-rs](https://github.com/cross-rs/cross). Excellent though that is, the procedure Apple's developer-hostile hypercorporate legalism mandates to build for MacOS (https://github.com/cross-rs/cross-toolchains#apple-targets) will take more time than I opt to spend on it.
+   
+    Mac users familiar with the Rust toolchain will find it quite straightforward to use via `cargo install`
