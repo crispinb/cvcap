@@ -68,22 +68,12 @@ struct Config {
 fn main() {
     let cli = Cli::parse();
 
-    // no log output by default. Overridden by -v flag (which sets to debug), or RUST_LOG env var
     let log_level = if cli.verbose { "DEBUG" } else { "OFF" };
     env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
 
     if let Err(err) = run_command(cli) {
-        error!("Fatal error. Root cause: {:?}", err.root_cause());
-        match err.root_cause().downcast_ref() {
-            Some(CheckvistError::TokenRefreshFailedError) => {
-                display_logged_out_message();
-                match delete_api_token() {
-                    Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
-                    _ => info!("Expired api token was deleted"),
-                }
-            }
-            _ => display_error(err),
-        }
+        error!("Fatal error. Cause: {:?}", err.root_cause());
+        inform_user_if_logged_out(err);
         std::process::exit(1);
     }
 
@@ -113,6 +103,19 @@ fn display_error(err: anyhow::Error) {
             "#,
         err, "https://github.com/crispinb/cvcap/issues"
     )
+}
+
+fn inform_user_if_logged_out(err: Error) {
+    match err.root_cause().downcast_ref() {
+        Some(CheckvistError::TokenRefreshFailedError) => {
+            display_logged_out_message();
+            match delete_api_token() {
+                Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
+                _ => info!("Expired api token was deleted"),
+            }
+        }
+        _ => display_error(err),
+    }
 }
 
 fn run_command(cli: Cli) -> Result<(), Error> {
