@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Error, Result};
 use clap::{Parser, Subcommand};
+use copypasta::{ClipboardContext, ClipboardProvider};
 use cvcap::{CheckvistClient, CheckvistError, Task};
 use dialoguer::{Confirm, Input, Password, Select};
 use directories::ProjectDirs;
@@ -40,12 +41,12 @@ struct Cli {
     /// Choose a list to add a new task to (ie. other than your default list)
     #[clap(short = 'l', long)]
     choose_list: bool,
-    // /// Add a task from the clipboard instead of the command line
-    // #[clap(short = 'c', long)]
-    // from_clipboard: bool,
     /// Enable verbose logging. In case of trouble
     #[clap(short = 'v', long = "verbose", requires = "task text")]
     verbose: bool,
+    /// Add a task from the clipboard instead of the command line
+    #[clap(short = 'c', long, conflicts_with = "task text")]
+    from_clipboard: bool,
     #[clap(subcommand)]
     command: Option<Commands>,
 }
@@ -73,15 +74,31 @@ fn main() {
 
     if let Err(err) = run_command(cli) {
         error!("Fatal error. Cause: {:?}", err.root_cause());
-        inform_user_if_logged_out(err);
+        display_error(err);
         std::process::exit(1);
     }
 
     std::process::exit(0);
 }
 
+fn display_error(err: Error) {
+    match err.root_cause().downcast_ref() {
+        Some(CheckvistError::TokenRefreshFailedError) => {
+            eprint_logged_out();
+            match delete_api_token() {
+                Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
+                _ => info!("Expired api token was deleted"),
+            }
+        }
+        _ => {
+            let err = err;
+            eprint_error(err);
+        }
+    }
+}
+
 #[inline(always)]
-fn display_logged_out_message() {
+fn eprint_logged_out() {
     eprintln!(
         r#"
     You have been logged out of the Checkvist API.
@@ -90,7 +107,7 @@ fn display_logged_out_message() {
 }
 
 #[inline(always)]
-fn display_error(err: anyhow::Error) {
+fn eprint_error(err: Error) {
     eprintln!(
         r#"
     Error: {}
@@ -105,56 +122,75 @@ fn display_error(err: anyhow::Error) {
     )
 }
 
-fn inform_user_if_logged_out(err: Error) {
-    match err.root_cause().downcast_ref() {
-        Some(CheckvistError::TokenRefreshFailedError) => {
-            display_logged_out_message();
-            match delete_api_token() {
-                Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
-                _ => info!("Expired api token was deleted"),
-            }
-        }
-        _ => display_error(err),
-    }
-}
-
 fn run_command(cli: Cli) -> Result<(), Error> {
-    match cli.task_content {
-        Some(content) => {
-            let client = get_api_client()?;
-            let config = get_config(&client, cli.choose_list)?;
-            let task = Task {
-                id: None,
-                content,
-                position: 1,
-            };
+    match (
+        cli.task_content,
+        clipboard_text_if_requested(cli.from_clipboard)?,
+    ) {
+        // task content from commandline or clipboard
+        (Some(content), None) | (None, Some(content)) => add_task(content, cli.choose_list),
 
-            let add_task_msg = format!(
-                r#"Adding task "{}" to list "{}""#,
-                task.content, config.list_name
-            );
-            let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
-            p.start()?;
+        // -c flag present, but cancelled by user
+        (_, None) => Ok(()),
 
-            let _returned_task = client
-                .add_task(config.list_id, task)
-                .context("Couldn't add task to list using Checkvist API")?;
-
-            p.stop().map_err(|e| anyhow!(e))?;
-
-            Ok(())
-        }
-        None => match cli.command {
+        // no task content
+        _ => match cli.command {
             Some(Commands::ShowStatus) => {
                 println!("{}", get_status());
                 Ok(())
             }
             None => {
-                error!("is arg_required_else_help not set?");
-                Err(anyhow!("Sorry something went wrong that should not have"))
+                error!(
+                    "Couldn't find a command given these args: {:?}",
+                    std::env::args()
+                );
+                Err(anyhow!(
+                    "Something went wrong interpreting the command args"
+                ))
             }
         },
     }
+}
+
+fn clipboard_text_if_requested(from_clipboard: bool) -> Result<Option<String>, Error> {
+    let task_from_clipboard = if from_clipboard {
+        let box_err_converter = |e| anyhow!("Error getting clipboard text: {:?}", e);
+        let mut ctx = ClipboardContext::new().map_err(box_err_converter)?;
+        let cliptext = ctx.get_contents().map_err(box_err_converter)?;
+        if Confirm::new()
+            .with_prompt(format!(r#"Add "{}" as a new task?"#, cliptext))
+            .interact()?
+        {
+            Some(cliptext)
+        } else {
+            println!("Cancelled");
+            None
+        }
+    } else {
+        None
+    };
+    Ok(task_from_clipboard)
+}
+
+fn add_task(content: String, choose_list: bool) -> Result<(), Error> {
+    let client = get_api_client()?;
+    let config = get_config(&client, choose_list)?;
+    let task = Task {
+        id: None,
+        content,
+        position: 1,
+    };
+    let add_task_msg = format!(
+        r#"Adding task "{}" to list "{}""#,
+        task.content, config.list_name
+    );
+    let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
+    p.start()?;
+    let _returned_task = client
+        .add_task(config.list_id, task)
+        .context("Couldn't add task to list using Checkvist API")?;
+    p.stop().map_err(|e| anyhow!(e))?;
+    Ok(())
 }
 
 fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
@@ -305,7 +341,7 @@ fn config_file_path() -> PathBuf {
 }
 
 fn get_config_from_user(lists: Vec<(u32, String)>) -> Option<Config> {
-    println!("Pick a list (or hit ESC to cancel)");
+    println!("Use arrow keys (or j/k) to pick a list. Enter/Space to choose. ESC to cancel\n");
 
     user_choose_list(&lists).map(|list| {
         println!("You picked list '{}'", list.1);
