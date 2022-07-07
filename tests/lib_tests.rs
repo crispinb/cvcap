@@ -169,7 +169,7 @@ fn add_task() {
     let mock = new_mock_post("/checklists/1/tasks.json", request_body, response_body);
 
     let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
-    let returned_task = client.add_task(1, task.clone()).unwrap();
+    let returned_task = client.add_task(1, &task).unwrap();
 
     mock.assert();
     assert_eq!(task, returned_task);

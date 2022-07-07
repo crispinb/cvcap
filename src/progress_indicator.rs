@@ -1,8 +1,12 @@
+use std::error::Error;
+use std::fmt;
 use std::io::{stdout, Write};
 use std::sync::mpsc::{self, Sender};
 use std::thread::{self, JoinHandle};
 
-// TODO: wrapper api of some sort - function? macro?
+type Result<T> = std::result::Result<T, Box<dyn Error + Send + Sync + 'static>>;
+// type Result<T> = std::result::Result<T, Box<dyn Error + 'static>>;
+
 pub struct ProgressIndicator {
     tx: Option<Sender<()>>,
     handle: Option<JoinHandle<()>>,
@@ -13,7 +17,12 @@ pub struct ProgressIndicator {
 }
 
 impl ProgressIndicator {
-    pub fn new(display_char: &str, start_message: &str, bye_message: &str, interval: u16) -> ProgressIndicator {
+    pub fn new(
+        display_char: &str,
+        start_message: &str,
+        bye_message: &str,
+        interval: u16,
+    ) -> ProgressIndicator {
         ProgressIndicator {
             tx: None,
             handle: None,
@@ -24,7 +33,17 @@ impl ProgressIndicator {
         }
     }
 
-    pub fn start(&mut self) -> Result<(), std::io::Error> {
+    pub fn run<F>(mut self, mut f: F) -> Result<()>
+    where
+        F: FnMut() -> Result<()>,
+    {
+        self.start()?;
+        let r = f();
+        self.stop()?;
+        r
+    }
+
+    fn start(&mut self) -> Result<()> {
         print!("{}", self.start_message);
         let (tx, rx) = mpsc::channel::<()>();
         self.tx = Some(tx);
@@ -47,18 +66,36 @@ impl ProgressIndicator {
         Ok(())
     }
 
-    pub fn stop(self) -> Result<(), String> {
-        let error_message = String::from("Something went wrong stopping progress indicator thread");
+    fn stop(self) -> Result<()> {
+        const ERROR_MESSAGE: &str =
+            "Something went wrong stopping progress indicator thread";
         self.tx
             .as_ref()
-            // unwrap seems OK here - not sure how it fails?
+            // seems OK here - not sure how it fails?
             .unwrap()
             .send(())
-            .map_err(|_e| error_message.clone())?;
+            .map_err(|_e| ERROR_MESSAGE)?;
 
-        self.handle
-            .unwrap()
-            .join()
-            .map_err(|_e| error_message)
+        //.join doesn't return an error trait implementation so we create an ad
+        //hoc one that in this context requires a hinted coercion bcs compiler
+        //types the closure from its params & return. Latter isn't a dyn.
+        // see https://stackoverflow.com/a/69500996/445929
+        self.handle.unwrap().join().map_err(|_e| {
+            Box::new(AdHocError {
+                error: ERROR_MESSAGE.into(),
+            }) as _
+        })
     }
 }
+
+#[derive(Debug)]
+struct AdHocError {
+    error: String,
+}
+impl fmt::Display for AdHocError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.error)
+    }
+}
+
+impl Error for AdHocError {}

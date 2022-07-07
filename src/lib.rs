@@ -184,7 +184,7 @@ impl CheckvistClient {
         self.to_results(response)
     }
 
-    pub fn add_task(&self, list_id: u32, task: Task) -> Result<Task, CheckvistError> {
+    pub fn add_task(&self, list_id: u32, task: &Task) -> Result<Task, CheckvistError> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/checklists/", &list_id.to_string(), "/tasks.json"],

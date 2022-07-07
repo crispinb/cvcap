@@ -82,6 +82,8 @@ fn main() {
 }
 
 fn display_error(err: Error) {
+    // TODO: cf just .downcast to a specific type?? (a la zoxide)
+    // (ie. why am I going all the way down the chain here?)
     match err.root_cause().downcast_ref() {
         Some(CheckvistError::TokenRefreshFailedError) => {
             eprint_logged_out();
@@ -172,7 +174,7 @@ fn clipboard_text_if_requested(from_clipboard: bool) -> Result<Option<String>, E
     Ok(task_from_clipboard)
 }
 
-fn add_task(content: String, choose_list: bool) -> Result<(), Error> {
+fn add_task(content: String, choose_list: bool) -> Result<()> {
     let client = get_api_client()?;
     let config = get_config(&client, choose_list)?;
     let task = Task {
@@ -184,13 +186,18 @@ fn add_task(content: String, choose_list: bool) -> Result<(), Error> {
         r#"Adding task "{}" to list "{}""#,
         task.content, config.list_name
     );
-    let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
-    p.start()?;
-    let _returned_task = client
-        .add_task(config.list_id, task)
-        .context("Couldn't add task to list using Checkvist API")?;
-    p.stop().map_err(|e| anyhow!(e))?;
-    Ok(())
+    ProgressIndicator::new(".", &add_task_msg, "Task added", 250)
+        .run(|| {
+            client
+                .add_task(config.list_id, &task)
+                .map(|_t| ())
+                .map_err(|e| Box::new(e) as _)
+        })
+        // TODO - RESEARCH NEEDED: cf -------> I don't understand. The Anyhow docs
+        // claim a From implementation for Box<dyn stdErr + Send + Sync + 'static>,
+        // which is what this map_err is a workaround for
+        .map_err(|e| anyhow!(e))
+        .context("Could not add task")
 }
 
 fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<Config> {
@@ -199,13 +206,17 @@ fn get_config(client: &CheckvistClient, user_chooses_new_list: bool) -> Result<C
             if !user_chooses_new_list {
                 println!("No default list configured")
             };
-            let mut p = ProgressIndicator::new(".", "Fetching lists from Checkvist ", "", 250);
-            p.start()?;
-            let available_lists: Vec<(u32, String)> = client
-                .get_lists()
-                .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())
+            // TODO: how to eliminate dummy allocation here?
+            let mut available_lists: Vec<(u32, String)> = vec![(0, String::new())];
+            ProgressIndicator::new(".", "Fetching lists from Checkvist ", "", 250)
+                .run(|| {
+                    available_lists = client.get_lists().map(|lists| {
+                        lists.into_iter().map(|list| (list.id, list.name)).collect()
+                    })?;
+                    Ok(())
+                })
+                .map_err(|e| anyhow!(e))
                 .context("Could not get lists from Checkvist API")?;
-            p.stop().map_err(|e| anyhow!(e))?;
             if let Some(user_config) = get_config_from_user(available_lists) {
                 if Confirm::new()
                     .with_prompt(format!(
