@@ -31,3 +31,6 @@ This is an intentionally simple tool to quickly capture text tasks to Checkvist.
   Has proved too much of a headache, at least for now. I build for non-Linux platforms using [cross-rs](https://github.com/cross-rs/cross). Excellent though that is, the procedure Apple's developer-hostile hypercorporate legalism mandates to build for MacOS (https://github.com/cross-rs/cross-toolchains#apple-targets) will take more time than I opt to spend on it.
    
     Mac users familiar with the Rust toolchain will find it quite straightforward to use via `cargo install`
+
+## Note on cvcap / Checkvist (non-)relationship
+*This is a third party app using Checkvist's public API. This repo has no affiliation with Checkvist (apart from recommending it heartily)*
