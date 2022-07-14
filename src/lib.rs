@@ -104,7 +104,7 @@ enum ApiResponse<T> {
 pub struct CheckvistClient {
     base_url: Url,
     api_token: RefCell<String>,
-    token_refresh_callback: fn(&str) -> (), 
+    token_refresh_callback: fn(&str) -> (),
 }
 
 impl CheckvistClient {

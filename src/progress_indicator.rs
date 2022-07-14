@@ -67,8 +67,7 @@ impl ProgressIndicator {
     }
 
     fn stop(self) -> Result<()> {
-        const ERROR_MESSAGE: &str =
-            "Something went wrong stopping progress indicator thread";
+        const ERROR_MESSAGE: &str = "Something went wrong stopping progress indicator thread";
         self.tx
             .as_ref()
             // seems OK here - not sure how it fails?
