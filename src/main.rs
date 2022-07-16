@@ -32,12 +32,12 @@ const BANNER: &str = r"
 
 #[derive(Parser, Debug)]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
-#[clap(args_conflicts_with_subcommands = true, arg_required_else_help = true)]
+#[clap(arg_required_else_help = true)]
 struct Cli {
     #[clap(subcommand)]
     subcommand: Command,
     /// Enable verbose logging. In case of trouble
-    #[clap(short = 'v', long = "verbose")]
+    #[clap(short = 'v', long = "verbose", global = true)]
     verbose: bool,
 }
 
