@@ -9,7 +9,7 @@ impl Action for ShowStatus {
     fn run(self, context: Context) -> Result<cmd::RunType> {
         println!("{}", self.get_status(context));
 
-        Ok(cmd::RunType::Continued)
+        Ok(cmd::RunType::Completed)
     }
 }
 

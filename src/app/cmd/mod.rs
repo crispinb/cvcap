@@ -10,6 +10,6 @@ pub trait Action {
 }
 
 pub enum RunType {
-    Continued,
+    Completed,
     Cancelled
 }
