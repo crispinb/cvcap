@@ -11,9 +11,6 @@ use cvcap::CheckvistError;
 use env_logger::Env;
 use log::{error, info};
 
-// TODO: reinstate -v (not currently working)
-// TODO - make 'add' action the default when no action is supplied
-
 // Logging.
 // Convention: reserve trace and debug levels for libraries (eg. checkvist api)
 // Levels used in executable:
@@ -32,10 +29,13 @@ const BANNER: &str = r"
 
 #[derive(Parser, Debug)]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
-#[clap(arg_required_else_help = true)]
+#[clap(arg_required_else_help = true, subcommand_negates_reqs = true)]
 struct Cli {
+    /// The task content to capture
+    #[clap(name = "task content", value_name = "TASK")]
+    task: Option<String>,
     #[clap(subcommand)]
-    subcommand: Command,
+    subcommand: Option<Command>,
     /// Enable verbose logging. In case of trouble
     #[clap(short = 'v', long = "verbose", global = true)]
     verbose: bool,
@@ -43,11 +43,19 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// (Default) Add a new task to your default list (you'll be prompted if you don't have one yet)
+    /// Capture a task with more options available (for more info do "cvcap help add")
     Add(cmd::Add),
     /// Check whether cvcap is logged in, and if it has a default list set
     #[clap(name = "status")]
     ShowStatus(cmd::ShowStatus),
+}
+
+impl Command {
+    // Create a default add command, with a content string and no options.
+    // Can't  use std::default here as we need the arg
+    fn default(task_content: &str) -> Self {
+        Self::Add(cmd::Add::new(task_content))
+    }
 }
 
 impl cmd::Action for Command {
@@ -69,13 +77,18 @@ fn main() {
     let log_level = if cli.verbose { "DEBUG" } else { "OFF" };
     env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
 
-    match cli.subcommand.run(context) {
+    // if no subcommand is provided, create a default 'add', with task content from first arg
+    match cli
+        .subcommand
+        .unwrap_or_else(|| Command::default(&cli.task.expect("Arguments error")))
+        .run(context)
+    {
         Err(err) => {
             error!("Fatal error. Cause: {:?}", err.root_cause());
             display_error(err);
             std::process::exit(1);
         }
-        Ok(cmd::RunType::Continued) => (),
+        Ok(cmd::RunType::Completed) => (),
         Ok(cmd::RunType::Cancelled) => println!("Cancelled"),
     }
     std::process::exit(0);

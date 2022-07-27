@@ -30,6 +30,11 @@ impl Action for Add {
 }
 
 impl Add {
+    // Create a new add action with a content string and all options false
+    pub fn new(task_content: &str) -> Self {
+        Self { task_content: Some(task_content.to_string()), choose_list: false, from_clipboard: false }
+    }
+
     fn add_task(&self, context: app::Context) -> Result<cmd::RunType> {
         let api_token = match context.api_token {
             Some(token) => token,
@@ -49,7 +54,10 @@ impl Add {
 
         let config = match (context.config.clone(), self.choose_list) {
             (Some(config), false) => config,
-            _ => prompt_for_config(&client)?,
+            _ => match prompt_for_config(&client)? {
+                Some(config) => config,
+                None => return Ok(cmd::RunType::Cancelled),
+            }
         };
 
         let content = match self.content_from_args_or_clipboard()? {
@@ -79,7 +87,7 @@ impl Add {
             // docs claim a From implementation for Box<dyn stdErr + Send + Sync +
             // 'static>, but I get a type mismatch  (which is what the map_err is a
             // workaround for)
-            .map(|_| cmd::RunType::Continued)
+            .map(|_| cmd::RunType::Completed)
             .map_err(|e| anyhow!(e))
             .context("Could not add task")
     }
@@ -102,7 +110,7 @@ impl Add {
     }
 }
 
-fn prompt_for_config(client: &CheckvistClient) -> Result<app::Config, Error> {
+fn prompt_for_config(client: &CheckvistClient) -> Result<Option<app::Config>, Error> {
     let available_lists = get_lists(client)?;
     if let Some(user_config) = select_list(available_lists) {
         if Confirm::new()
@@ -121,9 +129,9 @@ fn prompt_for_config(client: &CheckvistClient) -> Result<app::Config, Error> {
             println!("'{}' is now your default list", user_config.list_name);
         }
 
-        Ok(user_config)
+        Ok(Some(user_config))
     } else {
-        return Err(anyhow!("Could not collect config info from user"));
+        Ok(None)
     }
 }
 

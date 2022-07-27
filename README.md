@@ -2,13 +2,26 @@
 > A minimal commandline capture tool for [Checkvist](https://checkvist.com)
 
 ## Usage
+### Basic
+  This form requires no subcommand, and takes no options other than `-v` (for verbose output)
+
 * `cvcap "a task"` 
 
   adds a task to the top of a default list (chosen on first run)
-* `cvcap "a task" -l` 
+
+
+### Choose a list to add a task to, or add from clipboard
+This requires use of the `add` subcommand
+* `cvcap add "a task" -l` 
 
   adds a task to a selected list (optionally saved as a new default)
+* `cvcap add -c`
 
+  adds a task from the clipboard
+
+* `cvcap add -cl`
+
+   combines the two options
 
 ## Installation
 * download a binary from [ Releases ](https://github.com/crispinb/cvcap/releases)
@@ -17,7 +30,7 @@
 
 ## Future plans
 This is an intentionally simple tool to quickly capture text tasks to Checkvist. It will likely remain unpolished but serviceable. A few additional features I expect to add are:
-* capture task text from clipboard or stdin
+* capture task text stdin
 * a completely quiet option for scripting use
 
 ### More speculative possibilities:
