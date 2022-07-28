@@ -1,8 +1,10 @@
 use anyhow::{Context, Result};
 use cvcap::CheckvistClient;
 use dialoguer::{Input, Password};
+use std::env;
 use keyring::Entry;
 
+const NON_DEFAULT_SERVICE_NAME_ENV_KEY: &str = "CVCAP_CREDENTIAL_ID";
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
 
 pub fn login_user() -> Result<String> {
@@ -27,7 +29,7 @@ pub fn login_user() -> Result<String> {
 }
 
 pub fn save_api_token_to_keyring(token: &str) -> Result<()> {
-    let entry = Entry::new(KEYCHAIN_SERVICE_NAME, &whoami::username());
+    let entry = Entry::new(&keychain_service_name(), &whoami::username());
     entry
         .set_password(token)
         .context("Couldn't create keyring entry (for checkvist API token")?;
@@ -37,13 +39,20 @@ pub fn save_api_token_to_keyring(token: &str) -> Result<()> {
 
 pub fn get_api_token_from_keyring() -> Option<String> {
     let username = whoami::username();
-    Entry::new(KEYCHAIN_SERVICE_NAME, &username)
+    Entry::new(&keychain_service_name(), &username)
         .get_password()
         .ok()
 }
 
 pub fn delete_api_token() -> Result<(), keyring::Error> {
     let os_username = whoami::username();
-    let checkvist_api_token = Entry::new(KEYCHAIN_SERVICE_NAME, &os_username);
+    let checkvist_api_token = Entry::new(&keychain_service_name(), &os_username);
     checkvist_api_token.delete_password()
+}
+
+fn keychain_service_name() -> String {
+    match env::var_os(NON_DEFAULT_SERVICE_NAME_ENV_KEY) {
+        Some(name) => name.into_string().expect("Couldn't get a valid credential key from CVCAP_CREDENTIAL_ID environment variable"),
+        None => KEYCHAIN_SERVICE_NAME.into(),
+    }
 }

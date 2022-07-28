@@ -2,9 +2,9 @@ use anyhow::Result;
 use directories::ProjectDirs;
 use log::error;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
+use std::{env, fs, path};
 
+const NON_DEFAULT_PATH_ENV_KEY: &str = "CVCAP_CONFIG_FILE_PATH";
 const CONFIG_FILE_NAME: &str = "cvcap.toml";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -43,9 +43,12 @@ impl Config {
     }
 }
 
-pub fn config_file_path() -> PathBuf {
-    ProjectDirs::from("com", "not10x", "cvcap")
-        .expect("OS cannot find HOME dir. Cannot proceed")
-        .config_dir()
-        .join(CONFIG_FILE_NAME)
+pub fn config_file_path() -> path::PathBuf {
+    match env::var_os(NON_DEFAULT_PATH_ENV_KEY) {
+        Some(path) => path::PathBuf::from(path),
+        None => ProjectDirs::from("com", "not10x", "cvcap")
+            .expect("OS cannot find HOME dir. Cannot proceed")
+            .config_dir()
+            .join(CONFIG_FILE_NAME),
+    }
 }

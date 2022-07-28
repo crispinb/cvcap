@@ -67,6 +67,10 @@ impl cmd::Action for Command {
     }
 }
 
+// TODO: piped stdin to 'add' subcommand
+// TODO: piped stdin with no subcommand?
+// TODO: 'help' must reflect stdin pipe 
+
 fn main() {
     let cli = Cli::parse();
     let context = app::Context {

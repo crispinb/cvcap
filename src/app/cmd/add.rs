@@ -35,6 +35,9 @@ impl Add {
         Self { task_content: Some(task_content.to_string()), choose_list: false, from_clipboard: false }
     }
 
+    // piped | cvcap add [-l/v optional] OK
+    // piped | cvcap add -c makes no sense
+    // piped | cvcap add 'content' makes no sense
     fn add_task(&self, context: app::Context) -> Result<cmd::RunType> {
         let api_token = match context.api_token {
             Some(token) => token,
@@ -164,6 +167,10 @@ fn select_list(lists: Vec<(u32, String)>) -> Option<app::Config> {
             list_name: list.1,
         }
     })
+}
+
+fn is_content_piped() -> bool {
+        atty::isnt(atty::Stream::Stdin) 
 }
 
 fn get_lists(client: &CheckvistClient) -> Result<Vec<(u32, String)>, Error> {

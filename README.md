@@ -28,6 +28,15 @@ This requires use of the `add` subcommand
     
     Currently available for Linux, Windows
 
+## Configuration and Environment
+
+The default configuration file is named `cvcap.toml`. By default it's in the standard config location for each platform.
+This can be altered by setting the env var CVCAP_CONFIG_FILE_PATH to the full desired path to the file.
+
+The Checkvist API login is stored in the logged-in user's system keyring for the platform (see https://github.com/hwchen/keyring-rs for platform details).
+The credential ID (however that is defined on the platform' is 'cvcap-api-token' by default. This can be changed by setting the env var CVCAP_CREDENTIAL_ID
+
+
 ## Future plans
 This is an intentionally simple tool to quickly capture text tasks to Checkvist. It will likely remain unpolished but serviceable. A few additional features I expect to add are:
 * capture task text stdin
@@ -46,4 +55,4 @@ This is an intentionally simple tool to quickly capture text tasks to Checkvist.
     Mac users familiar with the Rust toolchain will find it quite straightforward to use via `cargo install`
 
 ## Note on cvcap / Checkvist (non-)relationship
-*This is a third party app using Checkvist's public API. This repo has no affiliation with Checkvist (apart from recommending it heartily)*
+This is a third party app using Checkvist's public API. This repo has no affiliation with Checkvist (apart from recommending it heartily)
