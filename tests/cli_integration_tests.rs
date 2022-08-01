@@ -95,10 +95,27 @@ fn cannot_combine_add_main_command_with_options() {
         .failure();
 }
 
+
+// https://github.com/crispinb/cvcap/issues/14
+#[test]
+#[ignore = "cvcap bin run (slow)"]
+fn shows_must_login_message_when_token_refresh_fails() {
+    let mut config = TestConfig::new(true, true);
+    // invalidate the token so a refresh will fail
+    test_creds::save_api_token_to_keyring("invalid token", &config.keyring_service_name);
+    
+    config.command
+    .arg("task to add")
+    .assert()
+    .stderr(predicate::str::contains("You have been logged out of the Checkvist API"))
+    .failure();
+}
+
 struct TestConfig {
     logged_in: bool,
     command: assert_cmd::Command,
     keyring_service_name: String,
+    // TempDir gets deleted when dropped, so we hold for test duration
     _temp_dir: TempDir,
 }
 

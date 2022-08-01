@@ -13,5 +13,6 @@ pub fn delete_api_token(service_name: &str) {
     let checkvist_api_token = Entry::new(service_name, &os_username);
     checkvist_api_token
         .delete_password()
-        .expect("Couldn't delete token")
+        .map_err(|_| eprintln!("couldn't delete token"))
+        .unwrap_or(())
 }

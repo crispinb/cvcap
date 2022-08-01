@@ -32,7 +32,11 @@ impl Action for Add {
 impl Add {
     // Create a new add action with a content string and all options false
     pub fn new(task_content: &str) -> Self {
-        Self { task_content: Some(task_content.to_string()), choose_list: false, from_clipboard: false }
+        Self {
+            task_content: Some(task_content.to_string()),
+            choose_list: false,
+            from_clipboard: false,
+        }
     }
 
     // piped | cvcap add [-l/v optional] OK
@@ -60,7 +64,7 @@ impl Add {
             _ => match prompt_for_config(&client)? {
                 Some(config) => config,
                 None => return Ok(cmd::RunType::Cancelled),
-            }
+            },
         };
 
         let content = match self.content_from_args_or_clipboard()? {
@@ -79,20 +83,16 @@ impl Add {
             task.content, config.list_name
         );
 
-        ProgressIndicator::new(".", &add_task_msg, "Task added", 250)
-            .run(|| {
-                client
-                    .add_task(config.list_id, &task)
-                    .map(|_t| ())
-                    .map_err(|e| Box::new(e) as _)
-            })
-            // TODO - RESEARCH NEEDED: cf -------> I don't understand. The Anyhow
-            // docs claim a From implementation for Box<dyn stdErr + Send + Sync +
-            // 'static>, but I get a type mismatch  (which is what the map_err is a
-            // workaround for)
+        let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
+        p.start();
+        let result = client
+            .add_task(config.list_id, &task)
             .map(|_| cmd::RunType::Completed)
             .map_err(|e| anyhow!(e))
-            .context("Could not add task")
+            .context("Could not add task");
+        p.stop(result.is_ok());
+
+        result
     }
 
     fn content_from_args_or_clipboard(&self) -> Result<Option<String>> {
@@ -170,19 +170,16 @@ fn select_list(lists: Vec<(u32, String)>) -> Option<app::Config> {
 }
 
 fn is_content_piped() -> bool {
-        atty::isnt(atty::Stream::Stdin) 
+    atty::isnt(atty::Stream::Stdin)
 }
 
 fn get_lists(client: &CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
-    let mut available_lists: Vec<(u32, String)> = Vec::new();
-    ProgressIndicator::new(".", "Fetching lists from Checkvist ", "", 250)
-        .run(|| {
-            available_lists = client
-                .get_lists()
-                .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())?;
-            Ok(())
-        })
-        .map_err(|e| anyhow!(e))
-        .context("Could not get lists from Checkvist API")?;
+    let mut p = ProgressIndicator::new(".", "Fetching lists from Checkvist ", "", 250);
+    p.start();
+    let available_lists = client
+        .get_lists()
+        .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())?;
+    p.stop(true);
+
     Ok(available_lists)
 }
