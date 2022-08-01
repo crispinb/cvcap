@@ -37,8 +37,8 @@ impl Config {
             fs::create_dir_all(config_dir)?;
         }
 
-        let json = toml::to_string(self)?;
-        std::fs::write(config_file_path(), json)?;
+        let toml = toml::to_string(self)?;
+        std::fs::write(config_file_path(), toml)?;
         Ok(())
     }
 }

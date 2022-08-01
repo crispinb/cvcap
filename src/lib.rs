@@ -1,6 +1,7 @@
 use core::fmt;
 use log::{error, info};
 use std::cell::RefCell;
+use std::collections::{HashMap};
 use std::vec;
 
 use serde::{Deserialize, Serialize};
@@ -169,6 +170,17 @@ impl CheckvistClient {
         );
 
         let response = self.checkvist_get(url)?.into_json()?;
+
+        self.to_result(response)
+    }
+
+    pub fn add_list(&self, list_name: &str) -> Result<Checklist, CheckvistError> {
+        let url = CheckvistClient::build_endpoint(
+            &self.base_url,
+            vec!["/checklists",  ".json"],
+        );
+
+        let response = self.checkvist_post(url, HashMap::from([("name", list_name)]))?.into_json()?;
 
         self.to_result(response)
     }

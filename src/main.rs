@@ -43,7 +43,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Capture a task with more options available (for more info do "cvcap help add")
+    /// Capture a task with more options available
     Add(cmd::Add),
     /// Check whether cvcap is logged in, and if it has a default list set
     #[clap(name = "status")]

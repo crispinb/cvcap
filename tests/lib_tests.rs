@@ -155,6 +155,28 @@ fn get_list() {
 }
 
 #[test]
+fn add_list() {
+    let new_list = "test list";
+    let expected_list = Checklist {
+        id: 1,
+        name: new_list.into(),
+        updated_at: "a date".to_string(),
+        task_count: 0,
+    };
+
+    let request_body = serde_json::to_value(HashMap::from([("name", new_list)])).unwrap();
+    let response_json = serde_json::to_string(&expected_list).unwrap();
+    let mock = new_mock_post("/checklists.json", request_body, response_json);
+    
+
+    let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
+    let result = client.add_list(new_list).unwrap();
+
+    mock.assert();
+    assert_eq!(result, expected_list);
+}
+
+#[test]
 fn get_tasks() {
     let tasks = vec![Task {
         id: Some(1),
@@ -227,6 +249,7 @@ fn refresh_auth_token_error_on_failure() {
     mock.assert();
     assert!(std::matches!(err, CheckvistError::TokenRefreshFailedError));
 }
+
 // Utilities
 fn new_mock_get(url: &str, token_to_match: &str, response_body: String) -> mockito::Mock {
     mock("GET", url)

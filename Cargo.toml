@@ -1,6 +1,6 @@
 [package]
 name = "cvcap"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = [ "Crispin Bennett" ]
 
@@ -21,6 +21,11 @@ keyring = "1.2.0"
 whoami = "1.2.1"
 dialoguer = "0.10.1"
 copypasta = "0.8.1"
+atty = "0.2.14"
 
 [dev-dependencies]
 mockito = "0.31.0"
+assert_cmd = "2.0.4"
+predicates = "2.0.3"
+temp-dir = "0.1.11"
+uuid = {version = "1.1.2", features = ["v4", "fast-rng"]}
