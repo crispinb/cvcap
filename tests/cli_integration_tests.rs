@@ -164,7 +164,7 @@ fn create_config_file(config: TestCvcapRunConfig, temp_dir: &TempDir) -> path::P
 }
 
 fn get_or_create_test_list() -> Checklist {
-    let api_token = std::env::var_os(API_KEY_ENV).expect("API_KEY_ENV must be set");
+    let api_token = std::env::var_os(API_KEY_ENV).expect("CVCAP_API_TOKEN must be set");
     let client = CheckvistClient::new(
         "https://checkvist.com/".into(),
         api_token.to_string_lossy().to_string(),
