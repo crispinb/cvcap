@@ -10,17 +10,37 @@ use copypasta::{ClipboardContext, ClipboardProvider};
 use cvcap::{CheckvistClient, Task};
 use dialoguer::{Confirm, Select};
 use log::error;
+use std::io::{self, Read};
 
 #[derive(Debug, Args)]
 pub struct Add {
-    #[clap(name = "task text", required_unless_present = "from-clipboard")]
+    #[clap(
+        name = "task text",
+        required_unless_present = "from clipboard",
+        required_unless_present = "from stdin"
+    )]
     task_content: Option<String>,
     /// Choose a list to add a new task to (ie. other than your default list)
     #[clap(short = 'l', long)]
     choose_list: bool,
     /// Add a task from the clipboard instead of the command line
-    #[clap(short = 'c', long, conflicts_with = "task text")]
+    #[clap(
+        short = 'c',
+        long,
+        name = "from clipboard",
+        conflicts_with = "task text",
+        conflicts_with = "from stdin"
+    )]
     from_clipboard: bool,
+    /// Add a task from stdin instead of the command line
+    #[clap(
+        name = "from stdin",
+        short = 's',
+        long,
+        conflicts_with = "task text",
+        conflicts_with = "from clipboard"
+    )]
+    from_stdin: bool,
 }
 
 impl Action for Add {
@@ -36,12 +56,10 @@ impl Add {
             task_content: Some(task_content.to_string()),
             choose_list: false,
             from_clipboard: false,
+            from_stdin: false,
         }
     }
 
-    // piped | cvcap add [-l/v optional] OK
-    // piped | cvcap add -c makes no sense
-    // piped | cvcap add 'content' makes no sense
     fn add_task(&self, context: app::Context) -> Result<cmd::RunType> {
         let api_token = match context.api_token {
             Some(token) => token,
@@ -67,7 +85,7 @@ impl Add {
             },
         };
 
-        let content = match self.content_from_args_or_clipboard()? {
+        let content = match self.get_task_content()? {
             Some(content) => content,
             None => return Ok(cmd::RunType::Cancelled),
         };
@@ -95,10 +113,18 @@ impl Add {
         result
     }
 
-    fn content_from_args_or_clipboard(&self) -> Result<Option<String>> {
-        if !self.from_clipboard {
-            return Ok(Some(self.task_content.as_ref().unwrap().clone()));
-        };
+    /// Get content from args, clipboard or std, depending on user-provided options
+    /// Ok(None) return indicates user cancellation
+    fn get_task_content(&self) -> Result<Option<String>> {
+        match (self.from_clipboard, self.from_stdin) {
+            (true, false) => self.get_content_from_clipboard(),
+            (false, true) => self.get_content_from_stdin(),
+            (false, false) => Ok(self.task_content.clone()),
+            (true, true) => panic!("Argument parsing failed"),
+        }
+    }
+
+    fn get_content_from_clipboard(&self) -> Result<Option<String>> {
         let box_err_converter = |e| anyhow!("Error getting clipboard text: {:?}", e);
         let mut ctx = ClipboardContext::new().map_err(box_err_converter)?;
         let cliptext = ctx.get_contents().map_err(box_err_converter)?;
@@ -108,8 +134,18 @@ impl Add {
         {
             Ok(Some(cliptext))
         } else {
+            // indicates cancellation
             Ok(None)
         }
+    }
+
+    fn get_content_from_stdin(&self) -> Result<Option<String>> {
+        if !is_content_piped() {
+            return Err(anyhow!(cmd::Error::MissingPipe));
+        }
+        let mut buffer = String::new();
+        io::stdin().read_to_string(&mut buffer)?;
+        Ok(Some(buffer))
     }
 }
 

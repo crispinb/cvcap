@@ -8,6 +8,9 @@ use temp_dir::TempDir;
 use test_config::TestCvcapRunConfig;
 use uuid::Uuid;
 
+
+// TODO: how to test interactive login, '-l' flag etc
+
 static CREATE_TEST_LIST: Once = Once::new();
 static mut TEST_LIST: Checklist = Checklist {
     id: 0,
@@ -29,7 +32,7 @@ fn run_without_args_shows_help() {
 
 #[test]
 #[ignore = "cvcap bin run (slow)"]
-fn simple_create_task() {
+fn adds_task_without_subcommand() {
     let mut config = TestConfig::new(true, true);
 
     config
@@ -83,16 +86,7 @@ fn status_reports_user_not_logged_in() {
 #[test]
 #[ignore = "cvcap bin run (slow)"]
 fn cannot_combine_add_main_command_with_options() {
-    let mut config = TestConfig::new(true, true);
-
-    config
-        .command
-        .arg("task to add")
-        .arg("-l")
-        .arg("-v")
-        .assert()
-        .stderr(predicate::str::contains("Found argument '-l'").count(1))
-        .failure();
+    args_should_conflict(vec!["a task", "-l", "-v"]);
 }
 
 
@@ -103,12 +97,67 @@ fn shows_must_login_message_when_token_refresh_fails() {
     let mut config = TestConfig::new(true, true);
     // invalidate the token so a refresh will fail
     test_creds::save_api_token_to_keyring("invalid token", &config.keyring_service_name);
-    
-    config.command
-    .arg("task to add")
-    .assert()
-    .stderr(predicate::str::contains("You have been logged out of the Checkvist API"))
-    .failure();
+
+    config
+        .command
+        .arg("task to add")
+        .assert()
+        .stderr(predicate::str::contains(
+            "You have been logged out of the Checkvist API",
+        ))
+        .failure();
+}
+
+#[test]
+#[ignore = "cvcap bin run (slow)"]
+fn add_task_from_stdin() {
+    let mut config = TestConfig::new(true, true);
+
+    config
+        .command
+        .arg("add")
+        .arg("-s")
+        .pipe_stdin("tests/data/task.md")
+        .unwrap()
+        .assert()
+        .stdout(predicate::str::contains("This is a test task"))
+        .success();
+}
+
+#[test]
+#[ignore = "cvcap bin run (slow)"]
+fn s_and_c_flags_conflict() {
+    args_should_conflict(vec!["add", "-c", "-s"]);
+}
+
+#[test]
+#[ignore = "cvcap bin run (slow)"]
+fn c_flag_conflicts_with_content_arg() {
+    args_should_conflict(vec!["add", "content", "-c"]);
+}
+
+#[test]
+#[ignore = "cvcap bin run (slow)"]
+fn s_flag_conflicts_with_content_arg() {
+    args_should_conflict(vec!["add", "content", "-s"]);
+}
+
+
+// TODO - FIX: `cvcap add -s` has a 0 result code here. 
+//             It fails (as it should) run from a shell
+//             Something assert_cmd oddness?
+#[test]
+#[ignore = "cvcap bin run (slow)"]
+fn s_option_without_pipe_errors() {
+    let mut config = TestConfig::new(true, true);
+
+    config
+        .command
+        .arg("add")
+        .arg("-s")
+        .assert()
+        // .stderr(predicate::str::contains("SOME ERROR"))
+        .failure();
 }
 
 struct TestConfig {
@@ -167,6 +216,16 @@ impl TestConfig {
             _temp_dir: temp_dir,
         }
     }
+}
+
+fn args_should_conflict(args: Vec<&str>) {
+    let mut config = TestConfig::new(true, true);
+
+    config
+        .command
+        .args(args)
+        .assert()
+        .failure();
 }
 
 fn random_service_name() -> String {
