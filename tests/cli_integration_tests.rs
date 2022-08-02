@@ -9,6 +9,7 @@ use test_config::TestCvcapRunConfig;
 use uuid::Uuid;
 
 
+// TODO: remove added tasks after tests
 // TODO: how to test interactive login, '-l' flag etc
 
 static CREATE_TEST_LIST: Once = Once::new();

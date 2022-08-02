@@ -57,7 +57,7 @@ enum Command {
 
 impl Command {
     // Create a default add command, with a content string and no options.
-    // Can't  use std::default here as we need the arg
+    // Can't  use std::default as we need the arg
     fn default(task_content: &str) -> Self {
         Self::Add(cmd::Add::new(task_content))
     }
@@ -100,6 +100,8 @@ fn main() {
 }
 
 fn display_error(err: Error) {
+    // This is pretty hacky. Downcast the concrete error types
+    // requiring specific handling 
     match err.root_cause().downcast_ref() {
         Some(CheckvistError::TokenRefreshFailedError) => {
             eprint_logged_out();
@@ -108,19 +110,14 @@ fn display_error(err: Error) {
                 _ => info!("Expired api token was deleted"),
             }
         }
-        _ => {
-           // TODO - FIX: remove foul hack when sorted out app error handling 
-            if err
-                .root_cause()
-                .to_string()
-                .contains("Tried to read from stdin pipe, but nothing was piped")
-            {
+        // other checkvist error variants, or other error types
+        _possible_app_error => match err.root_cause().downcast_ref::<app::Error>() {
+            Some(app::Error::MissingPipe) => {
                 eprint_nopipe_error();
-                return;
             }
-            let err = err;
-            eprint_error(err);
-        }
+            //
+            _all_other_errors => eprint_error(err),
+        },
     }
 }
 

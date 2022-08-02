@@ -1,5 +1,7 @@
 ## release-v??
-
+* capture text from stdin
+  https://github.com/crispinb/cvcap/issues/6
+* bug fixes
 
 ## release-v0.1.1-alpha
 
