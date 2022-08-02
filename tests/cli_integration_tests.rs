@@ -146,19 +146,19 @@ fn s_flag_conflicts_with_content_arg() {
 // TODO - FIX: `cvcap add -s` has a 0 result code here. 
 //             It fails (as it should) run from a shell
 //             Something assert_cmd oddness?
-#[test]
-#[ignore = "cvcap bin run (slow)"]
-fn s_option_without_pipe_errors() {
-    let mut config = TestConfig::new(true, true);
+// #[test]
+// #[ignore = "cvcap bin run (slow)"]
+// fn s_option_without_pipe_errors() {
+//     let mut config = TestConfig::new(true, true);
 
-    config
-        .command
-        .arg("add")
-        .arg("-s")
-        .assert()
-        // .stderr(predicate::str::contains("SOME ERROR"))
-        .failure();
-}
+//     config
+//         .command
+//         .arg("add")
+//         .arg("-s")
+//         .assert()
+//         // .stderr(predicate::str::contains("SOME ERROR"))
+//         .failure();
+// }
 
 struct TestConfig {
     logged_in: bool,

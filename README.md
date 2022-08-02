@@ -39,8 +39,9 @@ The credential ID (however that is defined on the platform' is 'cvcap-api-token'
 
 ## Future plans
 This is an intentionally simple tool to quickly capture text tasks to Checkvist. It will likely remain unpolished but serviceable. A few additional features I expect to add are:
-* capture task text stdin
 * a completely quiet option for scripting use
+* simplify the UI eg. remove the 'add' subcommand 
+* add a 'logout' command
 
 ### More speculative possibilities:
 * adding non-text MIME types from files or clipboard
