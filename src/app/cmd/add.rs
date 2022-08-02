@@ -140,7 +140,6 @@ impl Add {
     }
 
     fn get_content_from_stdin(&self) -> Result<Option<String>> {
-        
         if !is_content_piped() {
             return Err(anyhow!(app::Error::MissingPipe));
         }

@@ -102,7 +102,7 @@ fn main() {
 fn display_error(err: Error) {
     // This is pretty hacky. Downcast the concrete error types
     // requiring specific handling 
-    match err.root_cause().downcast_ref() {
+    match err.root_cause().downcast_ref::<CheckvistError>() {
         Some(CheckvistError::TokenRefreshFailedError) => {
             eprint_logged_out();
             match creds::delete_api_token() {

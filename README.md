@@ -18,15 +18,20 @@ This requires use of the `add` subcommand
 * `cvcap add -c`
 
   adds a task from the clipboard
+* `cat [file name] | cvcap add -s`
+  
+   Adds a task from stdin
 
-* `cvcap add -cl`
+* `cvcap add -cl` &nbsp;&nbsp;  - or - &nbsp;&nbsp;   `echo "task"  | cvcap add -sl`
 
-   combines the two options
+   combines options
 
 ## Installation
 * download a binary from [ Releases ](https://github.com/crispinb/cvcap/releases)
     
     Currently available for Linux, Windows
+
+* those familiar with the Rust tookchain will find it straightforward to install from git with `cargo install`. This is currently the only way to install on MacOS.
 
 ## Configuration and Environment
 
@@ -47,13 +52,7 @@ This is an intentionally simple tool to quickly capture text tasks to Checkvist.
 * adding non-text MIME types from files or clipboard
 * richer Checkvist content (notes, attachments, due dates, priorities) 
 * add task to somewhere other than the top of the list
-
-### Unlikely, shelved, or abandoned
-* a MacOS build
-  
-  Has proved too much of a headache, at least for now. I build for non-Linux platforms using [cross-rs](https://github.com/cross-rs/cross). Excellent though that is, the procedure Apple's legalism mandates to build for MacOS (https://github.com/cross-rs/cross-toolchains#apple-targets) will take more time than I opt to spend on it.
-   
-    Mac users familiar with the Rust toolchain will find it quite straightforward to use via `cargo install`
+* a MacOS build (I don't have a Mac so this depends on getting MacOS VM working)
 
 ## Note on cvcap / Checkvist (non-)relationship
 This is a third party app using Checkvist's public API. This repo has no affiliation with Checkvist (apart from recommending it heartily)

@@ -144,9 +144,11 @@ fn s_flag_conflicts_with_content_arg() {
 }
 
 
-// TODO - FIX: `cvcap add -s` has a 0 result code here. 
-//             It fails (as it should) run from a shell
-//             Something assert_cmd oddness?
+// This attempt to test for -s with no pipe doesn't work.
+//`cvcap add -s` has a 0 result code here,
+// and adds an empty task to the test list. 
+// It fails (as it should) run from a shell.
+// Something to do with atty/assert_cmd interaction?
 // #[test]
 // #[ignore = "cvcap bin run (slow)"]
 // fn s_option_without_pipe_errors() {

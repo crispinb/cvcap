@@ -1,4 +1,4 @@
-## release-v??
+## release tag v0.1.2-alpha
 * capture text from stdin
   https://github.com/crispinb/cvcap/issues/6
 * bug fixes
