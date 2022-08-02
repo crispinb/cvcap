@@ -8,7 +8,6 @@ use temp_dir::TempDir;
 use test_config::TestCvcapRunConfig;
 use uuid::Uuid;
 
-
 // TODO: remove added tasks after tests
 // TODO: how to test interactive login, '-l' flag etc
 
@@ -90,7 +89,6 @@ fn cannot_combine_add_main_command_with_options() {
     args_should_conflict(vec!["a task", "-l", "-v"]);
 }
 
-
 // https://github.com/crispinb/cvcap/issues/14
 #[test]
 #[ignore = "cvcap bin run (slow)"]
@@ -143,10 +141,40 @@ fn s_flag_conflicts_with_content_arg() {
     args_should_conflict(vec!["add", "content", "-s"]);
 }
 
+#[test]
+#[ignore = "cvcap bin run (slow)"]
+fn logout_subcommand_deletes_token() {
+    let mut config = TestConfig::new(true, true);
+
+    config
+        .command
+        .arg("logout")
+        .assert()
+        .stdout(predicate::str::contains("logged out"))
+        .success();
+
+    assert_eq!(
+        test_creds::get_api_token_from_keyring(&config.keyring_service_name),
+        None
+    );
+}
+
+#[test]
+#[ignore = "cvcap bin run (slow)"]
+fn logout_subcommand_when_not_logged_in_succeeds_with_message() {
+    let mut config = TestConfig::new(false, true);
+
+    config
+        .command
+        .arg("logout")
+        .assert()
+        .stdout(predicates::str::contains("already logged out"))
+        .success();
+}
 
 // This attempt to test for -s with no pipe doesn't work.
 //`cvcap add -s` has a 0 result code here,
-// and adds an empty task to the test list. 
+// and adds an empty task to the test list.
 // It fails (as it should) run from a shell.
 // Something to do with atty/assert_cmd interaction?
 // #[test]
@@ -224,11 +252,7 @@ impl TestConfig {
 fn args_should_conflict(args: Vec<&str>) {
     let mut config = TestConfig::new(true, true);
 
-    config
-        .command
-        .args(args)
-        .assert()
-        .failure();
+    config.command.args(args).assert().failure();
 }
 
 fn random_service_name() -> String {

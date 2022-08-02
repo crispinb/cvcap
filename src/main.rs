@@ -53,6 +53,9 @@ enum Command {
     /// Check whether cvcap is logged in, and if it has a default list set
     #[clap(name = "status")]
     ShowStatus(cmd::ShowStatus),
+    /// Removes all login data for the logged in user
+    #[clap(name="logout")]
+    LogOut(cmd::LogOut)
 }
 
 impl Command {
@@ -68,6 +71,7 @@ impl cmd::Action for Command {
         match self {
             Command::Add(add) => add.run(context),
             Command::ShowStatus(cmd) => cmd.run(context),
+            Command::LogOut(cmd) => cmd.run(context),
         }
     }
 }

@@ -16,3 +16,10 @@ pub fn delete_api_token(service_name: &str) {
         .map_err(|_| eprintln!("couldn't delete token"))
         .unwrap_or(())
 }
+
+pub fn get_api_token_from_keyring(service_name: &str) -> Option<String> {
+    let username = whoami::username();
+    Entry::new(service_name, &username)
+        .get_password()
+        .ok()
+}
