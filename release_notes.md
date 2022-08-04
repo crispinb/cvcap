@@ -1,6 +1,7 @@
-## release tag v0.1.??
+## release tag v0.1.3-alpha
 * logout command
   https://github.com/crispinb/cvcap/issues/10
+* experimental MacOS build (Intel only)
 
 ## release tag v0.1.2-alpha
 * capture text from stdin
