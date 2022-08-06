@@ -1,5 +1,6 @@
 #[allow(unused)]
 mod app;
+mod colour_output;
 mod progress_indicator;
 use anyhow::{Error, Result};
 use app::{
@@ -7,6 +8,7 @@ use app::{
     creds, Config,
 };
 use clap::{Parser, Subcommand};
+use colour_output::{ColourOutput, StreamKind, Style};
 use cvcap::CheckvistError;
 use env_logger::Env;
 use log::{error, info};
@@ -54,8 +56,8 @@ enum Command {
     #[clap(name = "status")]
     ShowStatus(cmd::ShowStatus),
     /// Removes all login data for the logged in user
-    #[clap(name="logout")]
-    LogOut(cmd::LogOut)
+    #[clap(name = "logout")]
+    LogOut(cmd::LogOut),
 }
 
 impl Command {
@@ -105,7 +107,7 @@ fn main() {
 
 fn display_error(err: Error) {
     // This is pretty hacky. Downcast the concrete error types
-    // requiring specific handling 
+    // requiring specific handling
     match err.root_cause().downcast_ref::<CheckvistError>() {
         Some(CheckvistError::TokenRefreshFailedError) => {
             eprint_logged_out();
@@ -131,13 +133,19 @@ fn eprint_nopipe_error() {
     // this doesn't actually produce a useful usage message
     // let mut cmd = Cli::command();
     // eprintln!("{}", cmd.render_usage())
-    const USAGE_MSG: &str = r#"error: -s arg requires piped input, eg. `cat [filename] | cvcap add -s`'
+    const USAGE_MSG: &str = r#"-s arg requires piped input, eg. `cat [filename] | cvcap add -s`'
 
 USAGE:
     cvcap add --from stdin --choose-list
 
 For more information try --help"#;
-    eprintln!("{}", USAGE_MSG);
+
+    let out = ColourOutput::new(StreamKind::Stderr);
+    out.append("error: ", Style::Error)
+        .append(USAGE_MSG, Style::Normal)
+        .println().expect("problem styling error text");
+
+    std::process::exit(0);
 }
 
 #[inline(always)]
@@ -151,9 +159,7 @@ fn eprint_logged_out() {
 
 #[inline(always)]
 fn eprint_error(err: Error) {
-    eprintln!(
-        r#"
-    Error: {}
+        let err_msg: String = format!(r#"
 
     If you want to report this, fill out an issue at 
     {}.
@@ -161,6 +167,12 @@ fn eprint_error(err: Error) {
     run the same command again with the '-v' switch,
     and copy the output into the issue.
             "#,
-        err, "https://github.com/crispinb/cvcap/issues"
-    )
+        "https://github.com/crispinb/cvcap/issues"
+    );
+    
+    let out = ColourOutput::new(StreamKind::Stderr);
+    out.append(format!("Error: {}", err), Style::Error)
+        .append(err_msg, Style::Normal)
+        .println().expect("problem styling error text");
+
 }

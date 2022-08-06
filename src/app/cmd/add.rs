@@ -3,6 +3,7 @@ use crate::app::{
     cmd::{self, Action},
     creds,
 };
+use crate::colour_output::{ColourOutput, StreamKind, Style};
 use crate::progress_indicator::ProgressIndicator;
 use anyhow::{anyhow, Context, Error, Result};
 use clap::Args;
@@ -96,12 +97,18 @@ impl Add {
             position: 1,
         };
 
-        let add_task_msg = format!(
-            r#"Adding task "{}" to list "{}""#,
-            task.content, config.list_name
-        );
+        let before_add_task = || {
+            let o = ColourOutput::new(StreamKind::Stdout)
+                .append("Adding task ", Style::Normal)
+                .append(&task.content, Style::TaskContent)
+                .append(" to list ", Style::Normal)
+                .append(&config.list_name, Style::ListName)
+                .println();
+        };
 
-        let mut p = ProgressIndicator::new(".", &add_task_msg, "Task added", 250);
+        let after_add_task = || println!("\nTask added");
+
+        let mut p = ProgressIndicator::new(".", Box::new(before_add_task), Box::new(after_add_task), 250);
         p.start();
         let result = client
             .add_task(config.list_id, &task)
@@ -165,7 +172,10 @@ fn prompt_for_config(client: &CheckvistClient) -> Result<Option<app::Config>, Er
                     app::config::config_file_path()
                 )
             })?;
-            println!("'{}' is now your default list", user_config.list_name);
+            let o = ColourOutput::new(StreamKind::Stdout);
+            o.append(user_config.list_name.to_string(), Style::ListName)
+                .append(" is now your default list", Style::Normal)
+                .println();
         }
 
         Ok(Some(user_config))
@@ -197,7 +207,11 @@ fn select_list(lists: Vec<(u32, String)>) -> Option<app::Config> {
             })
     }
     .map(|list| {
-        println!("You picked list '{}'", list.1);
+        ColourOutput::new(StreamKind::Stdout)
+            .append("You picked list '", Style::Normal)
+            .append(&list.1, Style::ListName)
+            .println();
+        
         app::Config {
             list_id: list.0,
             list_name: list.1,
@@ -210,7 +224,8 @@ fn is_content_piped() -> bool {
 }
 
 fn get_lists(client: &CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
-    let mut p = ProgressIndicator::new(".", "Fetching lists from Checkvist ", "", 250);
+    let before_get_lists = || println!("Fetching lists from checkvist");
+    let mut p = ProgressIndicator::new(".", Box::new(before_get_lists), Box::new(|| ()), 250);
     p.start();
     let available_lists = client
         .get_lists()

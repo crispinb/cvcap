@@ -1,3 +1,6 @@
+## Use termcolor for terminal output
+`clap` already deps on it, so it's an obvous choice
+
 ## How to do cli integration tests
 * how to manage platform state (config file, keyring)
   
