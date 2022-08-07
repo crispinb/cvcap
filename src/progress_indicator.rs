@@ -9,23 +9,23 @@ pub struct ProgressIndicator<'a> {
     handle: Option<JoinHandle<()>>,
     do_before: Box<dyn Fn() + 'a>,
     do_after: Box<dyn Fn() + 'a>,
-    display_char: String,
-    display_interval_ms: u16,
+    progress_char: char,
+    display_interval_ms: u64,
 }
 
 impl ProgressIndicator<'_> {
     pub fn new<'a>(
-        display_char: &'a str,
+        progress_char: char,
         do_before: Box<dyn Fn() + 'a>,
         do_after: Box<dyn Fn() + 'a>,
-        interval: u16,
+        interval: u64,
     ) -> ProgressIndicator<'a> {
         ProgressIndicator {
             tx: None,
             handle: None,
             do_before,
             do_after,
-            display_char: display_char.into(),
+            progress_char,
             display_interval_ms: interval,
         }
     }
@@ -34,8 +34,8 @@ impl ProgressIndicator<'_> {
         (self.do_before)();
         let (tx, rx) = mpsc::channel::<()>();
         self.tx = Some(tx);
-        let interval: u64 = self.display_interval_ms.into();
-        let display_char = self.display_char.clone();
+        let interval: u64 = self.display_interval_ms;
+        let progress_char: char = self.progress_char;
         let handle = thread::Builder::new()
             .name(String::from("SimpleProgressIndicator-Thread"))
             .spawn(move || loop {
@@ -43,7 +43,7 @@ impl ProgressIndicator<'_> {
                     stdout().flush().expect("Something went badly wrong");
                     break;
                 };
-                print!("{}", display_char);
+                print!("{}", progress_char);
                 stdout().flush().expect("Something went badly wrong");
                 thread::sleep(std::time::Duration::from_millis(interval));
             })?;

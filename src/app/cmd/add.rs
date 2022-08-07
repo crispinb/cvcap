@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context, Error, Result};
 use clap::Args;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use cvcap::{CheckvistClient, Task};
-use dialoguer::{Confirm, Select};
+use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 use log::error;
 use std::io::{self, Read};
 
@@ -108,7 +108,7 @@ impl Add {
 
         let after_add_task = || println!("\nTask added");
 
-        let mut p = ProgressIndicator::new(".", Box::new(before_add_task), Box::new(after_add_task), 250);
+        let mut p = ProgressIndicator::new('.', Box::new(before_add_task), Box::new(after_add_task), 250);
         p.start();
         let result = client
             .add_task(config.list_id, &task)
@@ -225,7 +225,7 @@ fn is_content_piped() -> bool {
 
 fn get_lists(client: &CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
     let before_get_lists = || println!("Fetching lists from checkvist");
-    let mut p = ProgressIndicator::new(".", Box::new(before_get_lists), Box::new(|| ()), 250);
+    let mut p = ProgressIndicator::new('.', Box::new(before_get_lists), Box::new(|| ()), 250);
     p.start();
     let available_lists = client
         .get_lists()
