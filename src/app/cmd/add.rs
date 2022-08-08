@@ -22,7 +22,7 @@ pub struct Add {
     )]
     task_content: Option<String>,
     /// Choose a list to add a new task to (ie. other than your default list)
-    #[clap(short = 'l', long)]
+    #[clap(short = 'l', long, conflicts_with = "quiet")]
     choose_list: bool,
     /// Add a task from the clipboard instead of the command line
     #[clap(
@@ -64,7 +64,7 @@ impl Add {
     fn add_task(&self, context: app::Context) -> Result<cmd::RunType> {
         let api_token = match context.api_token {
             Some(token) => token,
-            None => creds::login_user()?,
+            None => self.login_user(context.run_interactively)?,
         };
 
         let client = CheckvistClient::new(
@@ -86,7 +86,7 @@ impl Add {
             },
         };
 
-        let content = match self.get_task_content()? {
+        let content = match self.get_task_content(context.run_interactively)? {
             Some(content) => content,
             None => return Ok(cmd::RunType::Cancelled),
         };
@@ -97,52 +97,71 @@ impl Add {
             position: 1,
         };
 
-        let before_add_task = || {
-            let o = ColourOutput::new(StreamKind::Stdout)
-                .append("Adding task ", Style::Normal)
-                .append(&task.content, Style::TaskContent)
-                .append(" to list ", Style::Normal)
-                .append(&config.list_name, Style::ListName)
-                .println();
-        };
+        if context.run_interactively {
+            let before_add_task = || {
+                let o = ColourOutput::new(StreamKind::Stdout)
+                    .append("Adding task ", Style::Normal)
+                    .append(&task.content, Style::TaskContent)
+                    .append(" to list ", Style::Normal)
+                    .append(&config.list_name, Style::ListName)
+                    .println();
+            };
 
-        let after_add_task = || println!("\nTask added");
+            let after_add_task = || println!("\nTask added");
 
-        let mut p = ProgressIndicator::new(
-            '.',
-            Box::new(before_add_task),
-            Box::new(after_add_task),
-            250,
-        );
-        p.start();
-        let result = client
-            .add_task(config.list_id, &task)
-            .map(|_| cmd::RunType::Completed)
-            .map_err(|e| anyhow!(e))
-            .context("Could not add task");
-        p.stop(result.is_ok());
+            let mut p = ProgressIndicator::new(
+                '.',
+                Box::new(before_add_task),
+                Box::new(after_add_task),
+                250,
+            );
+            p.start();
+            let result = client
+                .add_task(config.list_id, &task)
+                .map(|_| cmd::RunType::Completed)
+                .map_err(|e| anyhow!(e))
+                .context("Could not add task");
+            p.stop(result.is_ok());
 
-        result
+            result
+        } else {
+            client
+                .add_task(config.list_id, &task)
+                .map(|_| cmd::RunType::Completed)
+                .map_err(|e| anyhow!(e))
+                .context("Could not add task")
+        }
+    }
+
+    // leave room here for future option to log in with username & password
+    // as args
+    fn login_user(&self, is_interactive: bool) -> Result<String> {
+        if is_interactive {
+            creds::login_user()
+        } else {
+            Err(anyhow!(app::Error::LoggedOut))
+        }
     }
 
     /// Get content from args, clipboard or std, depending on user-provided options
     /// Ok(None) return indicates user cancellation
-    fn get_task_content(&self) -> Result<Option<String>> {
+    fn get_task_content(&self, is_interactive: bool) -> Result<Option<String>> {
         match (self.from_clipboard, self.from_stdin) {
-            (true, false) => self.get_content_from_clipboard(),
+            (true, false) => self.get_content_from_clipboard(is_interactive),
             (false, true) => self.get_content_from_stdin(),
             (false, false) => Ok(self.task_content.clone()),
             (true, true) => panic!("Argument parsing failed"),
         }
     }
 
-    fn get_content_from_clipboard(&self) -> Result<Option<String>> {
+    fn get_content_from_clipboard(&self, is_interactive: bool) -> Result<Option<String>> {
         let box_err_converter = |e| anyhow!("Error getting clipboard text: {:?}", e);
         let mut ctx = ClipboardContext::new().map_err(box_err_converter)?;
         let cliptext = ctx.get_contents().map_err(box_err_converter)?;
-        if Confirm::new()
-            .with_prompt(format!(r#"Add "{}" as a new task?"#, cliptext))
-            .interact()?
+        if !is_interactive
+            || Confirm::new()
+                .with_prompt(format!(r#"Add "{}" as a new task?"#, cliptext))
+                .interact()?
         {
             Ok(Some(cliptext))
         } else {

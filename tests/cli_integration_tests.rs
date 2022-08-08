@@ -45,6 +45,20 @@ fn adds_task_without_subcommand() {
 
 #[test]
 #[ignore = "cvcap bin run (slow)"]
+fn adds_task_quietly() {
+    let mut config = TestConfig::new(true, true);
+
+    config
+        .command
+        .arg("test task from test 'simple_create_task'")
+        .arg("-q")
+        .assert()
+        .stdout(predicate::str::is_empty())
+        .success();
+}
+
+#[test]
+#[ignore = "cvcap bin run (slow)"]
 fn status_reports_logged_in_and_configured_default_list() {
     let mut config = TestConfig::new(true, true);
 

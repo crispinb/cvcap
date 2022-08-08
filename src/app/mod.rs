@@ -7,6 +7,7 @@ use std::fmt;
 pub struct Context {
     pub config: Option<Config>,
     pub api_token: Option<String>,
+    pub run_interactively: bool,
 }
 
 /// App errors are largely handled by creating anyhow::Errors
@@ -16,6 +17,7 @@ pub struct Context {
 #[derive(Debug)]
 pub enum Error {
     MissingPipe,
+    LoggedOut,
 }
 
 impl fmt::Display for Error {
@@ -23,6 +25,9 @@ impl fmt::Display for Error {
         match *self {
             Error::MissingPipe => {
                 write!(f, "Tried to read from stdin pipe, but nothing was piped")
+            }
+            Error::LoggedOut => {
+                write!(f, "cvcap is logged out")
             }
         }
     }

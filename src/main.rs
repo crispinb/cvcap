@@ -16,7 +16,7 @@ use log::{error, info};
 // Logging.
 // Convention: reserve trace and debug levels for libraries (eg. checkvist api)
 // Levels used in executable:
-// - error: any non-recoverable error (eg. inability to parse config toml: can recover by o662xkDtJuGaFa2verwriting)
+// - error: any non-recoverable error (eg. inability to parse config toml)
 // - warn: recoverable errors
 // - info: transient info for debugging
 
@@ -46,6 +46,10 @@ struct Cli {
     /// Enable verbose logging. In case of trouble
     #[clap(short = 'v', long = "verbose", global = true)]
     verbose: bool,
+    /// Reduces output, and requires no interaction
+    ///
+    #[clap(short = 'q', long = "quiet", global = true, conflicts_with = "verbose")]
+    quiet: bool,
 }
 
 #[derive(Subcommand, Debug)]
@@ -83,6 +87,7 @@ fn main() {
     let context = app::Context {
         config: Config::read_from_file(),
         api_token: creds::get_api_token_from_keyring(),
+        run_interactively: !cli.quiet,
     };
 
     let log_level = if cli.verbose { "DEBUG" } else { "OFF" };
@@ -96,8 +101,7 @@ fn main() {
     {
         Err(err) => {
             error!("Fatal error. Cause: {:?}", err.root_cause());
-            display_error(err);
-            std::process::exit(1);
+            handle_error(err, cli.quiet);
         }
         Ok(cmd::RunType::Completed) => (),
         Ok(cmd::RunType::Cancelled) => println!("Cancelled"),
@@ -105,12 +109,12 @@ fn main() {
     std::process::exit(0);
 }
 
-fn display_error(err: Error) {
+fn handle_error(err: Error, is_quiet: bool) {
     // This is pretty hacky. Downcast the concrete error types
     // requiring specific handling
     match err.root_cause().downcast_ref::<CheckvistError>() {
         Some(CheckvistError::TokenRefreshFailedError) => {
-            eprint_logged_out();
+            eprint_logged_out(is_quiet);
             match creds::delete_api_token() {
                 Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
                 _ => info!("Expired api token was deleted"),
@@ -119,17 +123,22 @@ fn display_error(err: Error) {
         // other checkvist error variants, or other error types
         _possible_app_error => match err.root_cause().downcast_ref::<app::Error>() {
             Some(app::Error::MissingPipe) => {
-                eprint_nopipe_error();
+                eprint_nopipe_error(is_quiet);
             }
             //
-            _all_other_errors => eprint_error(err),
+            _all_other_errors => eprint_error(err, is_quiet),
         },
     }
+    std::process::exit(1);
 }
 
 #[inline(always)]
 // haven't so far found a way to get clap to do this
-fn eprint_nopipe_error() {
+fn eprint_nopipe_error(is_quiet: bool) {
+    if is_quiet {
+        return;
+    }
+
     // this doesn't actually produce a useful usage message
     // let mut cmd = Cli::command();
     // eprintln!("{}", cmd.render_usage())
@@ -145,12 +154,14 @@ For more information try --help"#;
         .append(USAGE_MSG, Style::Normal)
         .println()
         .expect("problem styling error text");
-
-    std::process::exit(0);
 }
 
 #[inline(always)]
-fn eprint_logged_out() {
+fn eprint_logged_out(is_quiet: bool) {
+    if is_quiet {
+        return;
+    }
+
     eprintln!(
         r#"
     You have been logged out of the Checkvist API.
@@ -159,7 +170,11 @@ fn eprint_logged_out() {
 }
 
 #[inline(always)]
-fn eprint_error(err: Error) {
+fn eprint_error(err: Error, is_quiet: bool) {
+    if is_quiet {
+        return;
+    }
+
     let err_msg: String = format!(
         r#"
 

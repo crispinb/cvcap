@@ -1,6 +1,8 @@
 ## release tag v0.1.3-alpha
 * logout command
   https://github.com/crispinb/cvcap/issues/10
+* quiet output (-q option) for use in scripts
+  https://github.com/crispinb/cvcap/issues/13
 * experimental MacOS build (Intel only)
 
 ## release tag v0.1.2-alpha
