@@ -1,6 +1,9 @@
-use crate::app::{cmd::{self, Action}, Context};
-use anyhow::Result;
+use crate::app::{
+    cmd::{self, Action},
+    Context,
+};
 use anyhow::anyhow;
+use anyhow::Result;
 use clap::Args;
 
 #[derive(Debug, Args)]

@@ -143,7 +143,8 @@ For more information try --help"#;
     let out = ColourOutput::new(StreamKind::Stderr);
     out.append("error: ", Style::Error)
         .append(USAGE_MSG, Style::Normal)
-        .println().expect("problem styling error text");
+        .println()
+        .expect("problem styling error text");
 
     std::process::exit(0);
 }
@@ -159,7 +160,8 @@ fn eprint_logged_out() {
 
 #[inline(always)]
 fn eprint_error(err: Error) {
-        let err_msg: String = format!(r#"
+    let err_msg: String = format!(
+        r#"
 
     If you want to report this, fill out an issue at 
     {}.
@@ -169,10 +171,10 @@ fn eprint_error(err: Error) {
             "#,
         "https://github.com/crispinb/cvcap/issues"
     );
-    
+
     let out = ColourOutput::new(StreamKind::Stderr);
     out.append(format!("Error: {}", err), Style::Error)
         .append(err_msg, Style::Normal)
-        .println().expect("problem styling error text");
-
+        .println()
+        .expect("problem styling error text");
 }

@@ -1,9 +1,9 @@
+use crate::{ColourOutput, StreamKind, Style};
 use anyhow::{Context, Result};
 use cvcap::CheckvistClient;
 use dialoguer::{Input, Password};
-use std::env;
 use keyring::Entry;
-use crate::{ColourOutput, StreamKind, Style};
+use std::env;
 
 const NON_DEFAULT_SERVICE_NAME_ENV_KEY: &str = "CVCAP_CREDENTIAL_ID";
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
@@ -58,7 +58,9 @@ pub fn delete_api_token() -> Result<(), keyring::Error> {
 
 fn keychain_service_name() -> String {
     match env::var_os(NON_DEFAULT_SERVICE_NAME_ENV_KEY) {
-        Some(name) => name.into_string().expect("Couldn't get a valid credential key from CVCAP_CREDENTIAL_ID environment variable"),
+        Some(name) => name.into_string().expect(
+            "Couldn't get a valid credential key from CVCAP_CREDENTIAL_ID environment variable",
+        ),
         None => KEYCHAIN_SERVICE_NAME.into(),
     }
 }

@@ -1,9 +1,9 @@
 mod add;
-mod show_status;
 mod logout;
+mod show_status;
 pub use self::add::Add;
-pub use self::show_status::ShowStatus;
 pub use self::logout::LogOut;
+pub use self::show_status::ShowStatus;
 use crate::app::Context;
 use anyhow::Result;
 

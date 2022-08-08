@@ -9,7 +9,7 @@ use anyhow::{anyhow, Context, Error, Result};
 use clap::Args;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use cvcap::{CheckvistClient, Task};
-use dialoguer::{Confirm, Select, theme::ColorfulTheme};
+use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use log::error;
 use std::io::{self, Read};
 
@@ -108,7 +108,12 @@ impl Add {
 
         let after_add_task = || println!("\nTask added");
 
-        let mut p = ProgressIndicator::new('.', Box::new(before_add_task), Box::new(after_add_task), 250);
+        let mut p = ProgressIndicator::new(
+            '.',
+            Box::new(before_add_task),
+            Box::new(after_add_task),
+            250,
+        );
         p.start();
         let result = client
             .add_task(config.list_id, &task)
@@ -211,7 +216,7 @@ fn select_list(lists: Vec<(u32, String)>) -> Option<app::Config> {
             .append("You picked list '", Style::Normal)
             .append(&list.1, Style::ListName)
             .println();
-        
+
         app::Config {
             list_id: list.0,
             list_name: list.1,

@@ -167,7 +167,6 @@ fn add_list() {
     let request_body = serde_json::to_value(HashMap::from([("name", new_list)])).unwrap();
     let response_json = serde_json::to_string(&expected_list).unwrap();
     let mock = new_mock_post("/checklists.json", request_body, response_json);
-    
 
     let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
     let result = client.add_list(new_list).unwrap();
