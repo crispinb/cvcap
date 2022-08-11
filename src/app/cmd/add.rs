@@ -62,11 +62,11 @@ impl Add {
     }
 
     fn add_task(&self, context: app::Context) -> Result<cmd::RunType> {
+        let run_interactively = context.run_interactively;
         let api_token = match context.api_token {
             Some(token) => token,
-            None => self.login_user(context.run_interactively)?,
+            None => self.login_user(run_interactively)?,
         };
-
         let client = CheckvistClient::new(
             "https://checkvist.com/".into(),
             api_token,
@@ -77,7 +77,6 @@ impl Add {
                     .unwrap_or(error!("Couldn't save token to keyring"))
             },
         );
-
         let config = match (context.config.clone(), self.choose_list) {
             (Some(config), false) => config,
             _ => match prompt_for_config(&client)? {
@@ -85,52 +84,44 @@ impl Add {
                 None => return Ok(cmd::RunType::Cancelled),
             },
         };
-
-        let content = match self.get_task_content(context.run_interactively)? {
+        let content = match self.get_task_content(run_interactively)? {
             Some(content) => content,
             None => return Ok(cmd::RunType::Cancelled),
         };
-
         let task = Task {
             id: None,
             content,
             position: 1,
         };
 
-        if context.run_interactively {
-            let before_add_task = || {
-                let o = ColourOutput::new(StreamKind::Stdout)
-                    .append("Adding task ", Style::Normal)
-                    .append(&task.content, Style::TaskContent)
-                    .append(" to list ", Style::Normal)
-                    .append(&config.list_name, Style::ListName)
-                    .println();
-            };
+        let before_add_task = || {
+            let o = ColourOutput::new(StreamKind::Stdout)
+                .append("Adding task ", Style::Normal)
+                .append(&task.content, Style::TaskContent)
+                .append(" to list ", Style::Normal)
+                .append(&config.list_name, Style::ListName)
+                .println();
+        };
 
-            let after_add_task = || println!("\nTask added");
-
-            let mut p = ProgressIndicator::new(
-                '.',
-                Box::new(before_add_task),
-                Box::new(after_add_task),
-                250,
-            );
-            p.start();
-            let result = client
-                .add_task(config.list_id, &task)
-                .map(|_| cmd::RunType::Completed)
-                .map_err(|e| anyhow!(e))
-                .context("Could not add task");
-            p.stop(result.is_ok());
-
-            result
-        } else {
+        let add_task = || {
             client
                 .add_task(config.list_id, &task)
-                .map(|_| cmd::RunType::Completed)
+                .map(|_| {
+                    if run_interactively {
+                        println!("\nTask added")
+                    }
+                })
                 .map_err(|e| anyhow!(e))
                 .context("Could not add task")
+        };
+
+        if context.run_interactively {
+            ProgressIndicator::new('.', Box::new(before_add_task), 250).run(add_task)?;
+        } else {
+            add_task()?;
         }
+
+        Ok(cmd::RunType::Completed)
     }
 
     // leave room here for future option to log in with username & password
@@ -248,13 +239,19 @@ fn is_content_piped() -> bool {
 }
 
 fn get_lists(client: &CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
-    let before_get_lists = || println!("Fetching lists from checkvist");
-    let mut p = ProgressIndicator::new('.', Box::new(before_get_lists), Box::new(|| ()), 250);
-    p.start();
-    let available_lists = client
-        .get_lists()
-        .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())?;
-    p.stop(true);
+    let before_get_lists = || {
+        println!("Fetching lists from checkvist")
+    };
+
+    let mut available_lists: Vec<(u32, String)> = Vec::new();
+    ProgressIndicator::new('.', Box::new(before_get_lists), 250).run(|| {
+        client
+            .get_lists()
+            .map(|lists| {
+                available_lists = lists.into_iter().map(|list| (list.id, list.name)).collect()
+            })
+            .map_err(|e| anyhow!(e))
+    })?;
 
     Ok(available_lists)
 }

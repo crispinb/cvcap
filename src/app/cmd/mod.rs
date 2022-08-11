@@ -11,6 +11,7 @@ pub trait Action {
     fn run(self, context: Context) -> Result<RunType>;
 }
 
+// TODO: is this effectively the same as std::ops::ControlFlow?
 pub enum RunType {
     Completed,
     Cancelled,

@@ -7,7 +7,7 @@ use std::vec;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-#[derive(PartialEq, Debug, Deserialize, Serialize)]
+#[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
 // only need PartialEq for test, but this doesn't work
 // because: integration tests build differently?
 // #[cfg_attr(all(test), derive(PartialEq))]
@@ -19,7 +19,7 @@ pub struct Checklist {
     pub task_count: u16,
 }
 
-#[derive(PartialEq, Debug, Serialize, Deserialize, Clone)]
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,

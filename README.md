@@ -48,6 +48,7 @@ This is an intentionally simple tool to quickly capture text tasks to Checkvist.
 * simplify the UI eg. remove the 'add' subcommand 
 
 ### More speculative possibilities:
+* offline usage
 * adding non-text MIME types from files or clipboard
 * richer Checkvist content (notes, attachments, due dates, priorities) 
 * add task to somewhere other than the top of the list
