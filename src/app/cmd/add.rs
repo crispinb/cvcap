@@ -62,10 +62,9 @@ impl Add {
     }
 
     fn add_task(&self, context: app::Context) -> Result<cmd::RunType> {
-        let run_interactively = context.run_interactively;
         let api_token = match context.api_token {
             Some(token) => token,
-            None => self.login_user(run_interactively)?,
+            None => self.login_user(context.run_interactively)?,
         };
         let client = CheckvistClient::new(
             "https://checkvist.com/".into(),
@@ -84,7 +83,7 @@ impl Add {
                 None => return Ok(cmd::RunType::Cancelled),
             },
         };
-        let content = match self.get_task_content(run_interactively)? {
+        let content = match self.get_task_content(context.run_interactively)? {
             Some(content) => content,
             None => return Ok(cmd::RunType::Cancelled),
         };
@@ -107,7 +106,7 @@ impl Add {
             client
                 .add_task(config.list_id, &task)
                 .map(|_| {
-                    if run_interactively {
+                    if context.run_interactively {
                         println!("\nTask added")
                     }
                 })

@@ -1,37 +1,88 @@
-# create release builds using https://github.com/rust-build/
-# .github/workflows/release.yml
+name: Build and deploy release
 
-name: "cvcap release build"
-on:
-  release:
-    types: 
-      - published
+on: 
+    push:
+        tags:
+         - "v*"
+env:
+  CARGO_TERM_COLOR: always
+  BIN_NAME: cvcap
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
     - name: Run tests
       run: cargo test --verbose
-  release:
-    name: release ${{ matrix.target }}
-    runs-on: ubuntu-latest
+
+  build-all:
+    runs-on: ${{matrix.os}}
     needs: test
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        target: [x86_64-pc-windows-gnu, x86_64-unknown-linux-musl, x86_64-apple-darwin]
+        # musl build not currently working with copypasta
+        # (via x11-clipboard -> xkb I think)
+        # target: [x86_64-pc-windows-gnu, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-apple-darwin]
+        target: [x86_64-pc-windows-gnu, x86_64-unknown-linux-gnu, x86_64-apple-darwin]
+        os: [macos-latest, windows-latest, ubuntu-latest]
+        exclude:
+          - os: macos-latest
+            target: x86_64-pc-windows-gnu
+          - os: macos-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-unknown-linux-musl
+          - os: windows-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-unknown-linux-musl
+          - os: windows-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+
     steps:
-      - name: install-extra-deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install libx11-xcb-dev
-      - uses: actions/checkout@master
-      - name: Compile and release
-        uses: rust-build/rust-build.action@v1.3.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Add target deps
+        run:
+          rustup target add ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/checkout@v3
+      
+      - name: Build all
+        run: cargo build --release --verbose --target ${{ matrix.target }}
+
+      - name: Echo diagnostic info
+        run: ls target/${{ matrix.target }}/release 
+      
+      - name: create archive directory
+        run: mkdir release
+      - name: create archive (windows)
+        if: ${{ contains(matrix.target, 'windows') }}
+        uses: thedoctor0/zip-release@main
         with:
-          RUSTTARGET: ${{ matrix.target }}
-          MINIFY: false
+          # path and filename are relative to directory
+          directory: "target/${{ matrix.target}}/release/"
+          path: "${{env.BIN_NAME}}.exe"
+          type: 'zip'
+          filename: '../../../release/${{ matrix.target }}.zip'
+          exclusions: '*.d' 
+      - name: create archive
+        # This doesn't work with 'windows' in double quotes. 
+        if: ${{ !contains(matrix.target, 'windows') }}
+        uses: thedoctor0/zip-release@main
+        with:
+          directory: "target/${{ matrix.target}}/release/"
+          path: "${{env.BIN_NAME}}"
+          type: 'zip'
+          filename: '../../../release/${{ matrix.target }}.zip'
+          exclusions: '*.d' 
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+              ./release/*
