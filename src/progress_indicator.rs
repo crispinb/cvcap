@@ -1,10 +1,9 @@
 use anyhow::{anyhow, Result};
 use std::io::{stdout, Write};
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc;
 use std::thread;
 
 pub struct ProgressIndicator<'a> {
-    tx: Option<Sender<()>>,
     do_before: Box<dyn FnMut() + 'a>,
     progress_char: char,
     display_interval_ms: u64,
@@ -17,7 +16,6 @@ impl ProgressIndicator<'_> {
         interval: u64,
     ) -> ProgressIndicator<'a> {
         ProgressIndicator {
-            tx: None,
             do_before,
             progress_char,
             display_interval_ms: interval,
@@ -31,28 +29,25 @@ impl ProgressIndicator<'_> {
         (self.do_before)();
 
         let (tx, rx) = mpsc::channel::<()>();
-        self.tx = Some(tx);
 
-        let progress_char = self.progress_char;
-        let display_interval = self.display_interval_ms;
         thread::scope(|s| {
             s.spawn(move || loop {
                 if rx.try_recv().is_ok() {
                     stdout().flush().expect("Couldn't flush stdout");
                     break;
                 };
-                print!("{}", progress_char);
+                print!("{}", self.progress_char);
                 stdout().flush().expect("Couldn't flush stdout");
-                thread::sleep(std::time::Duration::from_millis(display_interval));
+                thread::sleep(std::time::Duration::from_millis(self.display_interval_ms));
             });
 
             let result = job();
 
-            self.tx
-                .as_ref()
-                .ok_or_else(|| anyhow!("Self.tx is None. Was .start() never called?"))?
-                .send(())
-                .map_err(|_e| anyhow!(String::from("Something went wrong stopping progress indicator thread")))?;
+            tx.send(()).map_err(|_e| {
+                anyhow!(String::from(
+                    "Something went wrong stopping progress indicator thread"
+                ))
+            })?;
 
             result
         })
