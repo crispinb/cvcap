@@ -1,5 +1,5 @@
 use crate::app::{
-    cmd::{self, Action},
+    action::{self, Action},
     Context,
 };
 use anyhow::anyhow;
@@ -10,10 +10,10 @@ use clap::Args;
 pub struct ShowStatus;
 
 impl Action for ShowStatus {
-    fn run(self, context: Context) -> Result<cmd::RunType> {
+    fn run(self, context: Context) -> Result<action::RunType> {
         println!("{}", self.get_status(context));
 
-        Ok(cmd::RunType::Completed)
+        Ok(action::RunType::Completed)
     }
 }
 

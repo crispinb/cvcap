@@ -1,5 +1,5 @@
 use crate::app::{
-    cmd::{self, Action},
+    action::{self, Action},
     creds, Context,
 };
 use anyhow::Result;
@@ -9,7 +9,7 @@ use clap::Args;
 pub struct LogOut;
 
 impl Action for LogOut {
-    fn run(self, context: crate::app::Context) -> Result<cmd::RunType> {
+    fn run(self, context: crate::app::Context) -> Result<action::RunType> {
         if context.api_token.is_some() {
             creds::delete_api_token()?;
             println!("cvcap is now logged out");
@@ -17,6 +17,6 @@ impl Action for LogOut {
             println!("cvcap is already logged out")
         }
 
-        Ok(cmd::RunType::Completed)
+        Ok(action::RunType::Completed)
     }
 }

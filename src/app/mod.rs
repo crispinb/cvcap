@@ -1,6 +1,7 @@
-pub mod cmd;
+pub mod action;
 pub mod config;
 pub mod creds;
+pub mod cli;
 pub use config::Config;
 use std::fmt;
 

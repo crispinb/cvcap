@@ -1,6 +1,6 @@
 use crate::app::{
     self,
-    cmd::{self, Action},
+    action::{self, Action},
     creds,
 };
 use crate::colour_output::{ColourOutput, StreamKind, Style};
@@ -45,7 +45,7 @@ pub struct Add {
 }
 
 impl Action for Add {
-    fn run(self, context: app::Context) -> Result<cmd::RunType> {
+    fn run(self, context: app::Context) -> Result<action::RunType> {
         self.add_task(context)
     }
 }
@@ -61,7 +61,7 @@ impl Add {
         }
     }
 
-    fn add_task(&self, context: app::Context) -> Result<cmd::RunType> {
+    fn add_task(&self, context: app::Context) -> Result<action::RunType> {
         let api_token = match context.api_token {
             Some(token) => token,
             None => self.login_user(context.run_interactively)?,
@@ -80,12 +80,12 @@ impl Add {
             (Some(config), false) => config,
             _ => match prompt_for_config(&client)? {
                 Some(config) => config,
-                None => return Ok(cmd::RunType::Cancelled),
+                None => return Ok(action::RunType::Cancelled),
             },
         };
         let content = match self.get_task_content(context.run_interactively)? {
             Some(content) => content,
-            None => return Ok(cmd::RunType::Cancelled),
+            None => return Ok(action::RunType::Cancelled),
         };
         let task = Task {
             id: None,
@@ -120,7 +120,7 @@ impl Add {
             add_task()?;
         }
 
-        Ok(cmd::RunType::Completed)
+        Ok(action::RunType::Completed)
     }
 
     // leave room here for future option to log in with username & password
