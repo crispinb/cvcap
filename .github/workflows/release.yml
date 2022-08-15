@@ -13,6 +13,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+    # can remove the update when Rust 1.63 is in the default runner
+    - name: Rust updates 
+      run: rustup update
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2
     - name: Run tests
@@ -48,9 +51,6 @@ jobs:
             target: x86_64-pc-windows-gnu
 
     steps:
-      # can remove the update when Rust 1.63 is in the default runner
-      - name: Rust updates 
-        run: rustup update
       - name: Add target deps
         run:
           rustup target add ${{ matrix.target }}
