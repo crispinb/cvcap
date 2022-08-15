@@ -37,6 +37,7 @@ const BANNER: &str = r"
 #[derive(Parser, Debug)]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
 #[clap(arg_required_else_help = true, subcommand_negates_reqs = true)]
+// TODO - REFACTOR: all the cli/command stuff should go in app
 struct Cli {
     /// The task content to capture
     #[clap(name = "task content", value_name = "TASK")]

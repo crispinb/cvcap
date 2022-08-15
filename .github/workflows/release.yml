@@ -1,5 +1,6 @@
 name: Build and deploy release
 
+# todo - set release title by some means other than from tagged commit
 on: 
     push:
         tags:
@@ -47,6 +48,9 @@ jobs:
             target: x86_64-pc-windows-gnu
 
     steps:
+      # can remove the update when Rust 1.63 is in the default runner
+      - name: Rust updates 
+        run: rustup update
       - name: Add target deps
         run:
           rustup target add ${{ matrix.target }}
