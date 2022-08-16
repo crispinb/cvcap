@@ -1,8 +1,9 @@
+use std::{env, fs, path};
+
 use anyhow::Result;
 use directories::ProjectDirs;
 use log::error;
 use serde::{Deserialize, Serialize};
-use std::{env, fs, path};
 
 const NON_DEFAULT_PATH_ENV_KEY: &str = "CVCAP_CONFIG_FILE_PATH";
 const CONFIG_FILE_NAME: &str = "cvcap.toml";

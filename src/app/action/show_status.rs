@@ -1,19 +1,16 @@
-use crate::app::{
-    action::{self, Action},
-    Context,
-};
-use anyhow::anyhow;
 use anyhow::Result;
 use clap::Args;
+
+use super::{Action, Context, RunType};
 
 #[derive(Debug, Args)]
 pub struct ShowStatus;
 
 impl Action for ShowStatus {
-    fn run(self, context: Context) -> Result<action::RunType> {
+    fn run(self, context: Context) -> Result<RunType> {
         println!("{}", self.get_status(context));
 
-        Ok(action::RunType::Completed)
+        Ok(RunType::Completed)
     }
 }
 

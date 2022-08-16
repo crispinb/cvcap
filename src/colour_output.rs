@@ -1,6 +1,7 @@
 // Provides simple colour output functions based on termcolor, to stdout and stderr
-use anyhow::Result;
 use std::io::Write;
+
+use anyhow::Result;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 pub struct ColourOutput {

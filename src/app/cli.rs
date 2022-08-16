@@ -1,10 +1,7 @@
-
-use anyhow::{Error, Result};
-use super::{
-    action::{self, Action},
-    creds, Config,
-};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
+
+use super::action;
 
 const BANNER: &str = r"                           
   _   _   _   _   _  
@@ -18,7 +15,6 @@ const BANNER: &str = r"
 #[derive(Parser, Debug)]
 #[clap(version, name=BANNER, about = "A minimal cli capture tool for Checkvist (https://checkvist.com)")]
 #[clap(arg_required_else_help = true, subcommand_negates_reqs = true)]
-// TODO - REFACTOR: all the cli/command stuff should go in app
 pub struct Cli {
     /// The task content to capture
     #[clap(name = "task content", value_name = "TASK")]

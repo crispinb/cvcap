@@ -51,6 +51,7 @@ jobs:
             target: x86_64-pc-windows-gnu
 
     steps:
+      todo - ah of course I need to update these machines too
       - name: Add target deps
         run:
           rustup target add ${{ matrix.target }}

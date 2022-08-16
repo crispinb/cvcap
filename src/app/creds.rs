@@ -1,9 +1,11 @@
-use crate::{ColourOutput, StreamKind, Style};
+use std::env;
+
 use anyhow::{Context, Result};
-use cvcap::CheckvistClient;
 use dialoguer::{Input, Password};
 use keyring::Entry;
-use std::env;
+
+use crate::{ColourOutput, StreamKind, Style};
+use cvcap::CheckvistClient;
 
 const NON_DEFAULT_SERVICE_NAME_ENV_KEY: &str = "CVCAP_CREDENTIAL_ID";
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
@@ -13,7 +15,8 @@ pub fn login_user() -> Result<String> {
     .append("cvcap is not logged in to Checkvist.", Style::Warning)
     .append("\nPlease enter your Checkvist username and OpenAPI key\nYour username is the email address you log in with\nYour OpenAPI key is available from ", Style::Normal)
     .append("https://checkvist.com/auth/profile", Style::Link)
-    .println();
+    .println()
+    .expect("Problem printing colour output");
 
     let token = CheckvistClient::get_token(
         "https://checkvist.com/".into(),

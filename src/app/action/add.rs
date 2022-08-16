@@ -1,17 +1,16 @@
-use crate::app::{
-    self,
-    action::{self, Action},
-    creds,
-};
-use crate::colour_output::{ColourOutput, StreamKind, Style};
-use crate::progress_indicator::ProgressIndicator;
-use anyhow::{anyhow, Context, Error, Result};
+use std::io::{self, Read};
+
+use anyhow::{anyhow, Context as ErrContext, Error, Result};
 use clap::Args;
 use copypasta::{ClipboardContext, ClipboardProvider};
 use cvcap::{CheckvistClient, Task};
-use dialoguer::{theme::ColorfulTheme, Confirm, Select};
+use dialoguer::{Confirm, Select};
 use log::error;
-use std::io::{self, Read};
+
+use super::{Action, Context, RunType};
+use crate::app;
+use crate::colour_output::{ColourOutput, StreamKind, Style};
+use crate::progress_indicator::ProgressIndicator;
 
 #[derive(Debug, Args)]
 pub struct Add {
@@ -45,7 +44,7 @@ pub struct Add {
 }
 
 impl Action for Add {
-    fn run(self, context: app::Context) -> Result<action::RunType> {
+    fn run(self, context: Context) -> Result<RunType> {
         self.add_task(context)
     }
 }
@@ -61,7 +60,7 @@ impl Add {
         }
     }
 
-    fn add_task(&self, context: app::Context) -> Result<action::RunType> {
+    fn add_task(&self, context: Context) -> Result<RunType> {
         let api_token = match context.api_token {
             Some(token) => token,
             None => self.login_user(context.run_interactively)?,
@@ -72,7 +71,7 @@ impl Add {
             // clippy warns about the unit argument, but I want it for the side effect
             #[allow(clippy::unit_arg)]
             |token| {
-                creds::save_api_token_to_keyring(token)
+                app::creds::save_api_token_to_keyring(token)
                     .unwrap_or(error!("Couldn't save token to keyring"))
             },
         );
@@ -80,12 +79,12 @@ impl Add {
             (Some(config), false) => config,
             _ => match prompt_for_config(&client)? {
                 Some(config) => config,
-                None => return Ok(action::RunType::Cancelled),
+                None => return Ok(RunType::Cancelled),
             },
         };
         let content = match self.get_task_content(context.run_interactively)? {
             Some(content) => content,
-            None => return Ok(action::RunType::Cancelled),
+            None => return Ok(RunType::Cancelled),
         };
         let task = Task {
             id: None,
@@ -94,12 +93,13 @@ impl Add {
         };
 
         let before_add_task = || {
-            let o = ColourOutput::new(StreamKind::Stdout)
+            ColourOutput::new(StreamKind::Stdout)
                 .append("Adding task ", Style::Normal)
                 .append(&task.content, Style::TaskContent)
                 .append(" to list ", Style::Normal)
                 .append(&config.list_name, Style::ListName)
-                .println();
+                .println()
+                .expect("Problem printing colour output");
         };
 
         let add_task = || {
@@ -120,14 +120,14 @@ impl Add {
             add_task()?;
         }
 
-        Ok(action::RunType::Completed)
+        Ok(RunType::Completed)
     }
 
     // leave room here for future option to log in with username & password
     // as args
     fn login_user(&self, is_interactive: bool) -> Result<String> {
         if is_interactive {
-            creds::login_user()
+            app::creds::login_user()
         } else {
             Err(anyhow!(app::Error::LoggedOut))
         }
@@ -186,10 +186,10 @@ fn prompt_for_config(client: &CheckvistClient) -> Result<Option<app::Config>, Er
                     app::config::config_file_path()
                 )
             })?;
-            let o = ColourOutput::new(StreamKind::Stdout);
-            o.append(user_config.list_name.to_string(), Style::ListName)
+            ColourOutput::new(StreamKind::Stdout)
+                .append(user_config.list_name.to_string(), Style::ListName)
                 .append(" is now your default list", Style::Normal)
-                .println();
+                .println()?;
         }
 
         Ok(Some(user_config))
@@ -224,7 +224,8 @@ fn select_list(lists: Vec<(u32, String)>) -> Option<app::Config> {
         ColourOutput::new(StreamKind::Stdout)
             .append("You picked list '", Style::Normal)
             .append(&list.1, Style::ListName)
-            .println();
+            .println()
+            .expect("Problem printing colour output");
 
         app::Config {
             list_id: list.0,
@@ -238,9 +239,7 @@ fn is_content_piped() -> bool {
 }
 
 fn get_lists(client: &CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
-    let before_get_lists = || {
-        println!("Fetching lists from checkvist")
-    };
+    let before_get_lists = || println!("Fetching lists from checkvist");
 
     let mut available_lists: Vec<(u32, String)> = Vec::new();
     ProgressIndicator::new('.', Box::new(before_get_lists), 250).run(|| {

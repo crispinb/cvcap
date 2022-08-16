@@ -1,7 +1,8 @@
-use anyhow::{anyhow, Result};
 use std::io::{stdout, Write};
 use std::sync::mpsc;
 use std::thread;
+
+use anyhow::{anyhow, Result};
 
 pub struct ProgressIndicator<'a> {
     do_before: Box<dyn FnMut() + 'a>,

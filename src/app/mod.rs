@@ -1,9 +1,13 @@
-pub mod action;
-pub mod config;
+mod action;
+mod cli;
+mod config;
 pub mod creds;
-pub mod cli;
-pub use config::Config;
+
 use std::fmt;
+
+pub use action::{Action, Add, LogOut, RunType, ShowStatus};
+pub use cli::{Cli, Command};
+pub use config::Config;
 
 pub struct Context {
     pub config: Option<Config>,
