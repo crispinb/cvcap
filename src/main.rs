@@ -4,11 +4,11 @@ mod progress_indicator;
 
 use anyhow::Error;
 use clap::Parser;
+use colour_output::{ColourOutput, StreamKind, Style};
 use env_logger::Env;
 use log::{error, info};
 
 use app::{creds, Action, Cli, Command, Config, Context, RunType};
-use colour_output::{ColourOutput, StreamKind, Style};
 use cvcap::CheckvistError;
 
 // Logging.
