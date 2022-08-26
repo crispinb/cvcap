@@ -1,3 +1,6 @@
+## Sync method
+see `sync.md`
+
 ## Use termcolor for terminal output
 `clap` already deps on it, so it's an obvous choice
 
