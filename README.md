@@ -2,6 +2,7 @@
 > A minimal commandline capture tool for [Checkvist](https://checkvist.com)
 
 ## Usage
+This is a summary. `cvcap help` shows all options
 ### Add a task from the commandline to the default list
   This form requires no subcommand, and takes no options other than `-v` (for verbose output)
 

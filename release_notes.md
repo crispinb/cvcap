@@ -1,3 +1,6 @@
+## release tag v0.1.4-alpha
+* experimental MacOS (Intel) build
+
 ## release tag v0.1.3-alpha
 * logout command
   https://github.com/crispinb/cvcap/issues/10
