@@ -5,7 +5,7 @@ use dialoguer::{Input, Password};
 use keyring::Entry;
 
 use crate::{ColourOutput, StreamKind, Style};
-use cvcap::CheckvistClient;
+use cvapi::CheckvistClient;
 
 const NON_DEFAULT_SERVICE_NAME_ENV_KEY: &str = "CVCAP_CREDENTIAL_ID";
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";

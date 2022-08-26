@@ -9,7 +9,7 @@ use env_logger::Env;
 use log::{error, info};
 
 use app::{creds, Action, Cli, Command, Config, Context, RunType};
-use cvcap::CheckvistError;
+use cvapi::CheckvistError;
 
 // Logging.
 // Convention: reserve trace and debug levels for libraries (eg. checkvist api)

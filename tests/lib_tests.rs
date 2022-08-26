@@ -1,6 +1,5 @@
-use cvcap::CheckvistClient;
 #[allow(unused)]
-use cvcap::{Checklist, CheckvistError, Task};
+use cvapi::{CheckvistClient, Checklist, CheckvistError, Task};    
 use mockito::{mock, Matcher};
 use std::collections::HashMap;
 

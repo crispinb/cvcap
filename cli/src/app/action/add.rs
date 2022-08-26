@@ -3,7 +3,7 @@ use std::io::{self, Read};
 use anyhow::{anyhow, Context as ErrContext, Error, Result};
 use clap::Args;
 use copypasta::{ClipboardContext, ClipboardProvider};
-use cvcap::{CheckvistClient, Task};
+use cvapi::{CheckvistClient, Task};
 use dialoguer::{Confirm, Select};
 use log::error;
 

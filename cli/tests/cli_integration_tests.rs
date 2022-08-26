@@ -1,6 +1,6 @@
 mod test_config;
 mod test_creds;
-use cvcap::{Checklist, CheckvistClient};
+use cvapi::{Checklist, CheckvistClient};
 use predicates::prelude::*;
 use std::path;
 use std::sync::Once;

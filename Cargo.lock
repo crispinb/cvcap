@@ -362,6 +362,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cvapi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "mockito",
+ "serde",
+ "serde_json",
+ "ureq",
+ "url",
+]
+
+[[package]]
 name = "cvcap"
 version = "0.1.4"
 dependencies = [
@@ -370,6 +383,7 @@ dependencies = [
  "atty",
  "clap",
  "copypasta",
+ "cvapi",
  "dialoguer",
  "directories",
  "env_logger",
