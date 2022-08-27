@@ -82,7 +82,6 @@ ResolveConflict(TR, TL):
    
    Diesel tempting because it seems to be widely used and has good docs and isn't async. But I'll try SQLx's sql-centric approach first. There's enough to learn in Rust as it is without replacing SQL with an idiosyncratic ORM languageish.
 
-
  # Refs
 
  * https://unterwaditzer.net/2016/sync-algorithm
