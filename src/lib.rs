@@ -1,3 +1,4 @@
+pub mod sqlite_store;
 use core::fmt;
 use log::{error, info};
 use std::cell::RefCell;
