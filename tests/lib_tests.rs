@@ -2,6 +2,7 @@
 use cvapi::{CheckvistClient, Checklist, CheckvistError, Task};    
 use mockito::{mock, Matcher};
 use std::collections::HashMap;
+use chrono::prelude::*;
 
 #[test]
 #[should_panic]
@@ -51,7 +52,7 @@ fn authentication_failure_results_in_token_refresh_attempt_then_redo() {
     let expected_list = Checklist {
         id: 1,
         name: list_name.into(),
-        updated_at: "a date".to_string(),
+        updated_at: now(),
         task_count: 1,
     };
     let response_json = serde_json::to_string(&expected_list).unwrap();
@@ -140,17 +141,18 @@ fn get_list() {
     let expected_list = Checklist {
         id: 1,
         name: "list1".to_string(),
-        updated_at: "a date".to_string(),
+        updated_at: now(),
         task_count: 1,
     };
     let response_json = serde_json::to_string(&expected_list).unwrap();
+    println!("------------> {}", response_json);
     let mock = new_mock_get("/checklists/1.json", "token", response_json);
 
     let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
     let result = client.get_list(1).unwrap();
 
     mock.assert();
-    assert_eq!(expected_list, result);
+    assert_eq!(result, expected_list);
 }
 
 #[test]
@@ -159,7 +161,7 @@ fn add_list() {
     let expected_list = Checklist {
         id: 1,
         name: new_list.into(),
-        updated_at: "a date".to_string(),
+        updated_at:  now(),
         task_count: 0,
     };
 
@@ -249,6 +251,10 @@ fn refresh_auth_token_error_on_failure() {
 }
 
 // Utilities
+fn now() -> DateTime<FixedOffset> {
+    Local::now().trunc_subsecs(0).try_into().unwrap()
+}
+
 fn new_mock_get(url: &str, token_to_match: &str, response_body: String) -> mockito::Mock {
     mock("GET", url)
         .match_header("X-Client-Token", token_to_match)

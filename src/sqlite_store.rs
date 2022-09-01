@@ -27,6 +27,7 @@ impl SqliteStore {
     }
 
     // TODO: was there some sort of struct assistance available in rustqlite or addition?
+    // TODO: make generic over saved struct type
     pub fn save(&self, list: &Checklist) -> Result<usize> {
         let rowcount = self.conn.execute(
             r#"
@@ -39,6 +40,7 @@ impl SqliteStore {
         Ok(rowcount)
     }
 
+    // TODO: perhaps make generic over return struct type?
     pub fn fetch_all(&self) -> Result<Vec<Checklist>> {
         let mut select_lists = self
             .conn

@@ -1,4 +1,8 @@
+mod checkvist_types;
 pub mod sqlite_store;
+
+pub use checkvist_types::{Checklist, CHECKVIST_DATE_FORMAT};
+
 use core::fmt;
 use log::{error, info};
 use std::cell::RefCell;
@@ -8,19 +12,8 @@ use std::vec;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-#[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
-// only need PartialEq for test, but this doesn't work
-// because: integration tests build differently?
-// #[cfg_attr(all(test), derive(PartialEq))]
-pub struct Checklist {
-    pub id: u32,
-    pub name: String,
-    // TODO: automatically convert to a date type of some sort when needed
-    pub updated_at: String,
-    pub task_count: u16,
-}
-
 #[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
+// TODO - REFACTOR: add updated_at
 pub struct Task {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
