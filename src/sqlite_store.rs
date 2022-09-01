@@ -8,12 +8,11 @@ impl SqliteStore {
     pub fn init() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
         // TODO: move into some kind of migration method when move to file-based db
-        // TODO: types: checkvist api, struct, sqlite, rusqlite
         conn.execute(
             r#"
         CREATE TABLE checklist (
             id INTEGER PRIMARY KEY,
-            checkvist_id INTEGER,
+            checkvist_id INTEGER UNIQUE,
             name TEXT NOT NULL,
             updated_at TEXT NOT NULL,
             task_count INTEGER NOT NULL
