@@ -145,7 +145,6 @@ fn get_list() {
         task_count: 1,
     };
     let response_json = serde_json::to_string(&expected_list).unwrap();
-    println!("------------> {}", response_json);
     let mock = new_mock_get("/checklists/1.json", "token", response_json);
 
     let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());

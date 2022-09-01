@@ -24,7 +24,6 @@ where
 {
     // see https://serde.rs/custom-date-format.html
     let s = String::deserialize(de)?;
-    dbg!(&s);
     let formatted = DateTime::parse_from_str(&s, CHECKVIST_DATE_FORMAT).map_err(serde::de::Error::custom)?;
 
     Ok(formatted)

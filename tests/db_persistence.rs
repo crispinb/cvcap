@@ -18,7 +18,7 @@ fn simplest_persist_retrieve() {
     let number_stored = store.save(&list).unwrap();
     let retrieved_lists: Vec<Checklist> = store.fetch_all().unwrap();
 
-    assert_eq!(1, number_stored);
-    assert_eq!(1, retrieved_lists.len());
-    assert_eq!(list, retrieved_lists[0]);
+    assert_eq!(number_stored, 1);
+    assert_eq!(retrieved_lists.len(), 1);
+    assert_eq!(retrieved_lists[0], list);
 }
