@@ -24,14 +24,16 @@ where
 {
     // see https://serde.rs/custom-date-format.html
     let s = String::deserialize(de)?;
-    let formatted = DateTime::parse_from_str(&s, CHECKVIST_DATE_FORMAT).map_err(serde::de::Error::custom)?;
+    let formatted =
+        DateTime::parse_from_str(&s, CHECKVIST_DATE_FORMAT).map_err(serde::de::Error::custom)?;
 
     Ok(formatted)
 }
 
 fn se_checkvist_date<S>(list: &DateTime<FixedOffset>, serializer: S) -> Result<S::Ok, S::Error>
-where S: Serializer {
-
+where
+    S: Serializer,
+{
     let s = format!("{}", list.format(CHECKVIST_DATE_FORMAT));
     serializer.serialize_str(&s)
 }

@@ -1,8 +1,10 @@
 #[allow(unused)]
-use cvapi::{CheckvistClient, Checklist, CheckvistError, Task};    
+mod utils;
+use utils::*;
+
+use cvapi::{Checklist, CheckvistClient, CheckvistError, Task};
 use mockito::{mock, Matcher};
 use std::collections::HashMap;
-use chrono::prelude::*;
 
 #[test]
 #[should_panic]
@@ -160,7 +162,7 @@ fn add_list() {
     let expected_list = Checklist {
         id: 1,
         name: new_list.into(),
-        updated_at:  now(),
+        updated_at: now(),
         task_count: 0,
     };
 
@@ -247,11 +249,6 @@ fn refresh_auth_token_error_on_failure() {
 
     mock.assert();
     assert!(std::matches!(err, CheckvistError::TokenRefreshFailedError));
-}
-
-// Utilities
-fn now() -> DateTime<FixedOffset> {
-    Local::now().trunc_subsecs(0).try_into().unwrap()
 }
 
 fn new_mock_get(url: &str, token_to_match: &str, response_body: String) -> mockito::Mock {

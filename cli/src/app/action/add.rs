@@ -165,7 +165,7 @@ impl Add {
             return Err(anyhow!(app::Error::MissingPipe));
         }
         let mut buffer = String::new();
-        
+
         io::stdin().lock().read_to_string(&mut buffer)?;
         Ok(Some(buffer))
     }
