@@ -3,7 +3,7 @@ use rusqlite::{Connection, Result};
 pub struct SqliteStore {
     conn: Connection,
 }
-
+ 
 impl SqliteStore {
     pub fn init() -> Result<Self> {
         let conn = Connection::open_in_memory()?;

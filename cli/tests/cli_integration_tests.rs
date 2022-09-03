@@ -1,24 +1,22 @@
 mod test_config;
 mod test_creds;
 use cvapi::{Checklist, CheckvistClient};
+use test_config::TestCvcapRunConfig;
+
 use predicates::prelude::*;
 use std::path;
 use std::sync::Once;
 use temp_dir::TempDir;
-use test_config::TestCvcapRunConfig;
 use uuid::Uuid;
 
 // TODO: remove added tasks after tests
 // TODO: how to test interactive login, '-l' flag etc
 
+// All tests share one test list, but we don't want an extra call per test to
+// check for its existence
 static CREATE_TEST_LIST: Once = Once::new();
-static mut TEST_LIST: Checklist = Checklist {
-    id: 0,
-    name: String::new(),
-    updated_at: String::new(),
-    task_count: 0,
-};
 const API_KEY_ENV: &str = "CVCAP_API_TOKEN";
+static mut TEST_LIST_ID: u32 = 0;
 const TEST_LIST_NAME: &str = "cvcap cli integration tests";
 
 #[test]
@@ -28,6 +26,7 @@ fn run_without_args_shows_help() {
     cmd.assert()
         .stderr(predicate::str::contains("USAGE:"))
         .failure();
+
 }
 
 #[test]
@@ -223,9 +222,10 @@ impl std::ops::Drop for TestConfig {
 
 impl TestConfig {
     fn new(logged_in: bool, configured: bool) -> Self {
+        // This is just to avoid repeated calls to get_or_create_test_list per test run
         unsafe {
             CREATE_TEST_LIST.call_once(|| {
-                TEST_LIST = get_or_create_test_list();
+                TEST_LIST_ID = get_or_create_test_list().id;
             });
         }
 
@@ -241,8 +241,8 @@ impl TestConfig {
         let config_file_path = if configured {
             unsafe {
                 let cvcap_config = TestCvcapRunConfig {
-                    list_id: TEST_LIST.id,
-                    list_name: TEST_LIST.name.clone(),
+                    list_id: TEST_LIST_ID,
+                    list_name: TEST_LIST_NAME.into(),
                 };
                 create_config_file(cvcap_config, &temp_dir)
             }
