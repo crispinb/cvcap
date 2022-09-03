@@ -20,7 +20,7 @@ static mut TEST_LIST_ID: u32 = 0;
 const TEST_LIST_NAME: &str = "cvcap cli integration tests";
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn run_without_args_shows_help() {
     let mut cmd = assert_cmd::Command::cargo_bin("cvcap").unwrap();
     cmd.assert()
@@ -30,7 +30,7 @@ fn run_without_args_shows_help() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn adds_task_without_subcommand() {
     let mut config = TestConfig::new(true, true);
 
@@ -43,7 +43,7 @@ fn adds_task_without_subcommand() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn adds_task_quietly() {
     let mut config = TestConfig::new(true, true);
 
@@ -57,7 +57,7 @@ fn adds_task_quietly() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn status_reports_logged_in_and_configured_default_list() {
     let mut config = TestConfig::new(true, true);
 
@@ -71,7 +71,7 @@ fn status_reports_logged_in_and_configured_default_list() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn status_reports_default_list_not_configured() {
     let mut config = TestConfig::new(true, false);
 
@@ -84,7 +84,7 @@ fn status_reports_default_list_not_configured() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn status_reports_user_not_logged_in() {
     let mut config = TestConfig::new(false, true);
 
@@ -97,14 +97,14 @@ fn status_reports_user_not_logged_in() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn cannot_combine_add_main_command_with_options() {
     args_should_conflict(vec!["a task", "-l", "-v"]);
 }
 
 // https://github.com/crispinb/cvcap/issues/14
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn shows_must_login_message_when_token_refresh_fails() {
     let mut config = TestConfig::new(true, true);
     // invalidate the token so a refresh will fail
@@ -121,7 +121,7 @@ fn shows_must_login_message_when_token_refresh_fails() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn add_task_from_stdin() {
     let mut config = TestConfig::new(true, true);
 
@@ -137,25 +137,25 @@ fn add_task_from_stdin() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn s_and_c_flags_conflict() {
     args_should_conflict(vec!["add", "-c", "-s"]);
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn c_flag_conflicts_with_content_arg() {
     args_should_conflict(vec!["add", "content", "-c"]);
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn s_flag_conflicts_with_content_arg() {
     args_should_conflict(vec!["add", "content", "-s"]);
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn logout_subcommand_deletes_token() {
     let mut config = TestConfig::new(true, true);
 
@@ -173,7 +173,7 @@ fn logout_subcommand_deletes_token() {
 }
 
 #[test]
-#[ignore = "cvcap bin run (slow)"]
+#[ignore = "slow - network call"]
 fn logout_subcommand_when_not_logged_in_succeeds_with_message() {
     let mut config = TestConfig::new(false, true);
 
@@ -191,7 +191,7 @@ fn logout_subcommand_when_not_logged_in_succeeds_with_message() {
 // It fails (as it should) run from a shell.
 // Something to do with atty/assert_cmd interaction?
 // #[test]
-// #[ignore = "cvcap bin run (slow)"]
+// #[ignore = "slow - network call"]
 // fn s_option_without_pipe_errors() {
 //     let mut config = TestConfig::new(true, true);
 

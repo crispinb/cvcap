@@ -17,7 +17,7 @@ fn save_and_retrieve_one_list() {
     };
     let store = SqliteStore::init().unwrap();
 
-    let number_stored = store.save(&list).unwrap();
+    let number_stored = store.save_list(&list).unwrap();
     let retrieved_lists: Vec<Checklist> = store.fetch_all_lists().unwrap();
 
     assert_eq!(number_stored, 1);

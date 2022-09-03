@@ -39,7 +39,7 @@ impl SqliteStore {
     }
 
     // TODO: was there struct assistance available in rustqlite or addition?
-    pub fn save(&self, list: &Checklist) -> Result<usize> {
+    pub fn save_list(&self, list: &Checklist) -> Result<usize> {
         let rowcount = self.conn.execute(
             r#"
             INSERT INTO checklist (checkvist_id, name, updated_at, task_count)
@@ -60,7 +60,6 @@ impl SqliteStore {
         "#,
         )?;
         for list in lists {
-            // TODO: is there a neater wayt to unroll the list here?
             stmt.execute((list.id, &list.name, list.updated_at, list.task_count))?;
         }
 
@@ -68,10 +67,10 @@ impl SqliteStore {
     }
 
     pub fn fetch_all_lists(&self) -> Result<Vec<Checklist>> {
-        let mut select_lists = self
+        let mut stmt = self
             .conn
             .prepare(r#" SELECT checkvist_id, name, updated_at, task_count from checklist "#)?;
-        let lists_iter = select_lists.query_map([], |row| {
+        let lists_iter = stmt.query_map([], |row| {
             Ok(Checklist {
                 id: row.get(0)?,
                 name: row.get(1)?,
