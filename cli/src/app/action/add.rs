@@ -4,7 +4,9 @@ use std::path::Path;
 use anyhow::{anyhow, Context as ErrContext, Error, Result};
 use clap::Args;
 use copypasta::{ClipboardContext, ClipboardProvider};
-use cvapi::{CheckvistClient, ApiClient, sqlite_client::SqliteClient, Task, sqlite_store::SqliteStore};
+use cvapi::{
+    sqlite_client::SqliteClient, sqlite_store::SqliteStore, ApiClient, CheckvistClient, Task,
+};
 use dialoguer::{Confirm, Select};
 use log::error;
 
@@ -176,6 +178,7 @@ impl Add {
 
 fn prompt_for_config(client: &dyn CheckvistClient) -> Result<Option<app::Config>, Error> {
     let available_lists = get_lists(client)?;
+
     if let Some(user_config) = select_list(available_lists) {
         if Confirm::new()
             .with_prompt(format!(
@@ -255,5 +258,9 @@ fn get_lists(client: &dyn CheckvistClient) -> Result<Vec<(u32, String)>, Error> 
             .map_err(|e| anyhow!(e))
     })?;
 
-    Ok(available_lists)
+    if available_lists.is_empty() {
+        Err(anyhow!(app::Error::NoLists))
+    } else {
+        Ok(available_lists)
+    }
 }

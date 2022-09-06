@@ -23,6 +23,7 @@ pub struct Context {
 pub enum Error {
     MissingPipe,
     LoggedOut,
+    NoLists
 }
 
 impl fmt::Display for Error {
@@ -33,6 +34,9 @@ impl fmt::Display for Error {
             }
             Error::LoggedOut => {
                 write!(f, "cvcap is logged out")
+            }
+            Error::NoLists => {
+                write!(f, "This account appears to have no lists")
             }
         }
     }
