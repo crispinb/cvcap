@@ -1,18 +1,9 @@
 use chrono::prelude::*;
 use mockito::{mock, Matcher};
-use std::collections::HashMap;
-// TODO: reorganise lib & exports
 use cvapi::sqlite_client::SqliteClient;
 use cvapi::{sqlite_store::SqliteStore, CheckvistClient, Checklist, ApiClient};
 
-// TODO: (for https://github.com/crispinb/cvcap/issues/21)
-// * add cli 'synclists'
-// * use persistence api in cli `-l`
-
 #[test]
-// after all, this is really an integration test.
-// sqlite store does the storing
-// checkvistclient does the getting
 fn save_and_fetch_lists() {
     let lists: Vec<Checklist> = (1..50)
         .map(|i| Checklist {

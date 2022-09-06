@@ -5,8 +5,8 @@ use directories::ProjectDirs;
 use log::error;
 use serde::{Deserialize, Serialize};
 
-const NON_DEFAULT_PATH_ENV_KEY: &str = "CVCAP_CONFIG_FILE_PATH";
-const CONFIG_FILE_NAME: &str = "cvcap.toml";
+const NON_DEFAULT_CONFIG_FILE_PATH_ENV_KEY: &str = "CVCAP_CONFIG_FILE_PATH";
+const DEFAULT_CONFIG_FILE_NAME: &str = "cvcap.toml";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
@@ -44,18 +44,19 @@ impl Config {
     }
 }
 
-pub fn config_file_path() -> path::PathBuf {
-    let config_dir = config_dir();
-    config_dir.join(CONFIG_FILE_NAME)
+pub fn config_dir() -> path::PathBuf {
+    ProjectDirs::from("com", "not10x", "cvcap")
+        .expect("OS cannot find HOME dir. Cannot proceed")
+        .config_dir()
+        .to_path_buf()
 }
 
-pub fn config_dir() -> path::PathBuf {
-    let config_dir = match env::var_os(NON_DEFAULT_PATH_ENV_KEY) {
+pub fn config_file_path() -> path::PathBuf {
+    match env::var_os(NON_DEFAULT_CONFIG_FILE_PATH_ENV_KEY) {
         Some(path) => path::PathBuf::from(path),
         None => ProjectDirs::from("com", "not10x", "cvcap")
             .expect("OS cannot find HOME dir. Cannot proceed")
             .config_dir()
-            .to_path_buf()
-    };
-    config_dir
+            .join(DEFAULT_CONFIG_FILE_NAME),
+    }
 }

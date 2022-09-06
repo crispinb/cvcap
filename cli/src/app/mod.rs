@@ -9,6 +9,7 @@ pub use action::{Action, Add, LogOut, RunType, ShowStatus};
 pub use cli::{Cli, Command};
 pub use config::Config;
 
+#[derive(Debug)]
 pub struct Context {
     pub config: Option<Config>,
     pub api_token: Option<String>,
