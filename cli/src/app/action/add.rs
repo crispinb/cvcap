@@ -1,5 +1,4 @@
 use std::io::{self, Read};
-use std::path::Path;
 
 use anyhow::{anyhow, Context as ErrContext, Error, Result};
 use clap::Args;
@@ -79,8 +78,7 @@ impl Add {
             },
         );
 
-        let store =
-            SqliteStore::init_with_file(&config::config_dir().join("data.db"))?;
+        let store = SqliteStore::init_with_file(&config::config_dir().join("data.db"))?;
         let client = SqliteClient::new(api_client, store);
         let config = match (context.config.clone(), self.choose_list) {
             (Some(config), false) => config,
@@ -248,16 +246,8 @@ fn is_content_piped() -> bool {
 }
 
 fn get_lists(client: &dyn CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
-    let before_get_lists = || println!("Fetching lists from checkvist");
-
-    let mut available_lists: Vec<(u32, String)> = Vec::new();
-    ProgressIndicator::new('.', Box::new(before_get_lists), 250).run(|| {
-        client
-            .get_lists()
-            .map(|lists| {
-                available_lists = lists.into_iter().map(|list| (list.id, list.name)).collect()
-            })
-            .map_err(|e| anyhow!(e))
+    let available_lists: Vec<(u32, String)> = client.get_lists().map(|lists| {
+         lists.into_iter().map(|list| (list.id, list.name)).collect()
     })?;
 
     if available_lists.is_empty() {

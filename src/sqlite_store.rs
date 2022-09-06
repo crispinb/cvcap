@@ -92,6 +92,13 @@ impl SqliteStore {
 
         tasks_iter.collect()
     }
+
+    /// temporary for cli testing
+    pub fn temp_delete_lists(&self) -> Result<()> {
+        let sql = "delete from checklist";
+        self.conn.execute(sql, [])?;
+        Ok(())
+    }
 }
 
 // TODO: scaffold possible future migrations. Table with current schema version will do for now

@@ -15,8 +15,10 @@ impl SqliteClient {
         }
     }
 
+    /// Placeholder for cli testing. Not yet a real sync 
     pub fn sync_lists(&self) -> Result<(), CheckvistError> {
         let lists = self.api_client.get_lists()?;
+        self.store.temp_delete_lists()?;
         self.store.save_lists(&lists)?;
 
         Ok(())
@@ -26,8 +28,6 @@ impl SqliteClient {
 
 impl CheckvistClient for SqliteClient {
     fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
-        // TODO: how and when to do the syncing?
-        // self.sync_lists()?;
         let lists = self.store.fetch_all_lists()?;
 
         Ok(lists)

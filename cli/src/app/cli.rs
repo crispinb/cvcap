@@ -40,6 +40,9 @@ pub enum Command {
     /// Removes all login data for the logged in user
     #[clap(name = "logout")]
     LogOut(action::LogOut),
+    /// temporary - syncs list names only
+    #[clap(name = "sync")]
+    Sync(action::Sync)
 }
 
 impl Command {
@@ -56,6 +59,7 @@ impl action::Action for Command {
             Command::Add(add) => add.run(context),
             Command::ShowStatus(cmd) => cmd.run(context),
             Command::LogOut(cmd) => cmd.run(context),
+            Command::Sync(cmd) => cmd.run(context),
         }
     }
 }
