@@ -1,25 +1,16 @@
 mod checkvist_types;
 pub mod sqlite_store;
+pub mod persistent_checkvist_client;
 
-pub use checkvist_types::{Checklist, CHECKVIST_DATE_FORMAT};
+pub use checkvist_types::{Checklist, Task, CheckvistError, CHECKVIST_DATE_FORMAT};
 
-use core::fmt;
 use log::{error, info};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::vec;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use url::Url;
-
-#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
-// TODO - REFACTOR: add updated_at
-pub struct Task {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<u32>,
-    pub content: String,
-    pub position: u16,
-}
 
 // struct seems a bit overwrought for this, but it turns out simpler
 // than messing with serde_json::Value (see https://play.rust-lang.org/?gist=9e64149fe110c686619185a783e78fcc&version=nightly)
@@ -28,48 +19,6 @@ struct ApiToken {
     token: String,
 }
 
-#[derive(Debug)]
-pub enum CheckvistError {
-    UnknownError { message: String },
-    NetworkError(ureq::Error),
-    // used by serde_json for decoding errors
-    IoError(std::io::Error),
-    TokenRefreshFailedError,
-}
-
-impl fmt::Display for CheckvistError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Self::IoError(ref err) => write!(f, "{:?}", err),
-            Self::NetworkError(ref err) => write!(f, "{:?}", err),
-            Self::UnknownError { ref message } => write!(f, "{}", message),
-            Self::TokenRefreshFailedError => write!(f, "Could not refresh token"),
-        }
-    }
-}
-
-impl std::error::Error for CheckvistError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match *self {
-            Self::IoError(ref err) => Some(err),
-            Self::NetworkError(ref err) => Some(err),
-            Self::UnknownError { message: _ } => None,
-            Self::TokenRefreshFailedError => None,
-        }
-    }
-}
-
-impl From<ureq::Error> for CheckvistError {
-    fn from(err: ureq::Error) -> Self {
-        CheckvistError::NetworkError(err)
-    }
-}
-
-impl From<std::io::Error> for CheckvistError {
-    fn from(err: std::io::Error) -> Self {
-        CheckvistError::IoError(err)
-    }
-}
 
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
@@ -309,6 +258,6 @@ impl CheckvistClient {
     fn build_endpoint(base_url: &Url, segments: Vec<&str>) -> Url {
         base_url
             .join(&segments.concat())
-            .expect("Error building endpoing (shouldn't happen as base_url is known good")
+            .expect("Error building endpoint (shouldn't happen as base_url is known good")
     }
 }

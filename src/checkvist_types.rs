@@ -1,4 +1,5 @@
 use chrono::prelude::*;
+use core::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const CHECKVIST_DATE_FORMAT: &str = "%Y/%m/%d %H:%M:%S %z";
@@ -15,6 +16,15 @@ pub struct Checklist {
     #[serde(serialize_with = "se_checkvist_date")]
     pub updated_at: DateTime<FixedOffset>,
     pub task_count: u16,
+}
+
+#[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
+// TODO - REFACTOR: add updated_at
+pub struct Task {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<u32>,
+    pub content: String,
+    pub position: u16,
 }
 
 // Checkvist doesn't use a standard date format, so we custom de/ser
@@ -36,4 +46,57 @@ where
 {
     let s = format!("{}", list.format(CHECKVIST_DATE_FORMAT));
     serializer.serialize_str(&s)
+}
+
+#[derive(Debug)]
+pub enum CheckvistError {
+    UnknownError { message: String },
+    NetworkError(ureq::Error),
+    // used by serde_json for decoding errors
+    IoError(std::io::Error),
+    TokenRefreshFailedError,
+    // TODO - REFACTOR: should we really depend on rusqlite here?
+    SqliteError(rusqlite::Error)
+}
+
+impl fmt::Display for CheckvistError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Self::IoError(ref err) => write!(f, "{:?}", err),
+            Self::NetworkError(ref err) => write!(f, "{:?}", err),
+            Self::UnknownError { ref message } => write!(f, "{}", message),
+            Self::TokenRefreshFailedError => write!(f, "Could not refresh token"),
+            Self::SqliteError(ref err) => write!(f, "{:?}", err),
+        }
+    }
+}
+
+impl std::error::Error for CheckvistError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match *self {
+            Self::IoError(ref err) => Some(err),
+            Self::NetworkError(ref err) => Some(err),
+            Self::UnknownError { message: _ } => None,
+            Self::TokenRefreshFailedError => None,
+            Self::SqliteError(ref err) => Some(err)
+        }
+    }
+}
+
+impl From<ureq::Error> for CheckvistError {
+    fn from(err: ureq::Error) -> Self {
+        CheckvistError::NetworkError(err)
+    }
+}
+
+impl From<std::io::Error> for CheckvistError {
+    fn from(err: std::io::Error) -> Self {
+        CheckvistError::IoError(err)
+    }
+}
+
+impl From<rusqlite::Error> for CheckvistError {
+    fn from(err: rusqlite::Error) -> Self {
+        CheckvistError::SqliteError(err)
+    }
 }
