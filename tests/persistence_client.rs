@@ -27,7 +27,7 @@ fn try_get_list_without_mockall() {
     let mock = new_mock_get("/checklists.json", "token", tasks_json);
 
     let checkvist_client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
-    let sqlite_store = SqliteStore::init().unwrap();
+    let sqlite_store = SqliteStore::init_in_memory().unwrap();
     let client = PersistentCheckvistClient::new(checkvist_client, sqlite_store);
     
     client.sync_lists().unwrap();

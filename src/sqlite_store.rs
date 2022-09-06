@@ -1,39 +1,26 @@
+use std::path::Path;
+
 use crate::{Checklist, Task};
 use rusqlite::{Connection, Result};
 pub struct SqliteStore {
     conn: Connection,
 }
- 
-impl SqliteStore {
-    pub fn init() -> Result<Self> {
-        let conn = Connection::open_in_memory()?;
-        // TODO: move into a migration method when move to file-based db
-        conn.execute(
-            r#"
-        CREATE TABLE IF NOT EXISTS checklist (
-            id INTEGER PRIMARY KEY,
-            checkvist_id INTEGER UNIQUE,
-            name TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            task_count INTEGER NOT NULL
-        )
-        STRICT
-        "#,
-            (),
-        )?;
 
-        conn.execute(
-            r#"
-        CREATE TABLE IF NOT EXISTS task (
-            id INTEGER PRIMARY KEY,
-            checkvist_id INTEGER UNIQUE,
-            content TEXT NOT NULL,
-            position INTEGER NOT NULL
-        )
-        STRICT
-        "#,
-            (),
-        )?;
+// fast large insertions https://github.com/avinassh/fast-sqlite3-inserts/blob/009694f/src/bin/basic_batched.rs
+// upshot: use prepared statements & batch
+
+
+impl SqliteStore {
+    pub fn init_in_memory() -> Result<Self> {
+        let conn = Connection::open_in_memory()?;
+        migrate(&conn)?;
+
+        Ok(SqliteStore { conn })
+    }
+
+    pub fn init_with_file(path: &Path) -> Result<Self> {
+        let conn = Connection::open(path)?;
+        migrate(&conn)?;
 
         Ok(SqliteStore { conn })
     }
@@ -105,4 +92,34 @@ impl SqliteStore {
 
         tasks_iter.collect()
     }
+}
+
+// TODO: scaffold possible future migrations. Table with current schema version will do for now
+fn migrate(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        r#"
+        CREATE TABLE IF NOT EXISTS checklist (
+            id INTEGER PRIMARY KEY,
+            checkvist_id INTEGER UNIQUE,
+            name TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            task_count INTEGER NOT NULL
+        )
+        STRICT
+        "#,
+        (),
+    )?;
+    conn.execute(
+        r#"
+        CREATE TABLE IF NOT EXISTS task (
+            id INTEGER PRIMARY KEY,
+            checkvist_id INTEGER UNIQUE,
+            content TEXT NOT NULL,
+            position INTEGER NOT NULL
+        )
+        STRICT
+        "#,
+        (),
+    )?;
+    Ok(())
 }
