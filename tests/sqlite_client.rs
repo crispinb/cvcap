@@ -2,11 +2,10 @@ use chrono::prelude::*;
 use mockito::{mock, Matcher};
 use std::collections::HashMap;
 // TODO: reorganise lib & exports
-use cvapi::persistent_checkvist_client::PersistentCheckvistClient;
-use cvapi::{sqlite_store::SqliteStore, Checklist, CheckvistClient};
+use cvapi::sqlite_client::SqliteClient;
+use cvapi::{sqlite_store::SqliteStore, CheckvistClient, Checklist, ApiClient};
 
 // TODO: (for https://github.com/crispinb/cvcap/issues/21)
-// * add file-based sqlite
 // * add cli 'synclists'
 // * use persistence api in cli `-l`
 
@@ -14,7 +13,7 @@ use cvapi::{sqlite_store::SqliteStore, Checklist, CheckvistClient};
 // after all, this is really an integration test.
 // sqlite store does the storing
 // checkvistclient does the getting
-fn try_get_list_without_mockall() {
+fn save_and_fetch_lists() {
     let lists: Vec<Checklist> = (1..50)
         .map(|i| Checklist {
             id: i,
@@ -26,13 +25,13 @@ fn try_get_list_without_mockall() {
     let tasks_json = serde_json::to_string(&lists).unwrap();
     let mock = new_mock_get("/checklists.json", "token", tasks_json);
 
-    let checkvist_client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
+    let checkvist_client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let sqlite_store = SqliteStore::init_in_memory().unwrap();
-    let client = PersistentCheckvistClient::new(checkvist_client, sqlite_store);
+    let client = SqliteClient::new(checkvist_client, sqlite_store);
     
     client.sync_lists().unwrap();
     mock.assert();
-    let stored_lists = client.fetch_all_lists().unwrap();
+    let stored_lists = client.get_lists().unwrap();
 
     assert_eq!(stored_lists, lists);
 }

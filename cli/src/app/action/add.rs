@@ -1,9 +1,10 @@
 use std::io::{self, Read};
+use std::path::Path;
 
 use anyhow::{anyhow, Context as ErrContext, Error, Result};
 use clap::Args;
 use copypasta::{ClipboardContext, ClipboardProvider};
-use cvapi::{CheckvistClient, Task};
+use cvapi::{CheckvistClient, ApiClient, sqlite_client::SqliteClient, Task, sqlite_store::SqliteStore};
 use dialoguer::{Confirm, Select};
 use log::error;
 
@@ -65,7 +66,7 @@ impl Add {
             Some(token) => token,
             None => self.login_user(context.run_interactively)?,
         };
-        let client = CheckvistClient::new(
+        let api_client = ApiClient::new(
             "https://checkvist.com/".into(),
             api_token,
             // clippy warns about the unit argument, but I want it for the side effect
@@ -75,6 +76,8 @@ impl Add {
                     .unwrap_or(error!("Couldn't save token to keyring"))
             },
         );
+        let store = SqliteStore::init_with_file(Path::new("test.db"))?;
+        let client = SqliteClient::new(api_client, store);
         let config = match (context.config.clone(), self.choose_list) {
             (Some(config), false) => config,
             _ => match prompt_for_config(&client)? {
@@ -171,7 +174,7 @@ impl Add {
     }
 }
 
-fn prompt_for_config(client: &CheckvistClient) -> Result<Option<app::Config>, Error> {
+fn prompt_for_config(client: &dyn CheckvistClient) -> Result<Option<app::Config>, Error> {
     let available_lists = get_lists(client)?;
     if let Some(user_config) = select_list(available_lists) {
         if Confirm::new()
@@ -239,7 +242,7 @@ fn is_content_piped() -> bool {
     atty::isnt(atty::Stream::Stdin)
 }
 
-fn get_lists(client: &CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
+fn get_lists(client: &dyn CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
     let before_get_lists = || println!("Fetching lists from checkvist");
 
     let mut available_lists: Vec<(u32, String)> = Vec::new();

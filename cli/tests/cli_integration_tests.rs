@@ -1,6 +1,6 @@
 mod test_config;
 mod test_creds;
-use cvapi::{Checklist, CheckvistClient};
+use cvapi::{CheckvistClient, Checklist, ApiClient};
 use test_config::TestCvcapRunConfig;
 
 use predicates::prelude::*;
@@ -282,7 +282,7 @@ fn create_config_file(config: TestCvcapRunConfig, temp_dir: &TempDir) -> path::P
 
 fn get_or_create_test_list() -> Checklist {
     let api_token = std::env::var_os(API_KEY_ENV).expect("CVCAP_API_TOKEN must be set");
-    let client = CheckvistClient::new(
+    let client = ApiClient::new(
         "https://checkvist.com/".into(),
         api_token.to_string_lossy().to_string(),
         |_| (),

@@ -4,6 +4,14 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const CHECKVIST_DATE_FORMAT: &str = "%Y/%m/%d %H:%M:%S %z";
 
+pub trait CheckvistClient {
+    fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError>;
+    fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError>;
+    fn add_list(&self, list_name: &str) -> Result<Checklist, CheckvistError> ;
+    fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> ;
+    fn add_task(&self, list_id: u32, task: &Task) -> Result<Task, CheckvistError> ;
+}
+
 #[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
 // only need PartialEq for test, but this doesn't work
 // because: integration tests build differently?

@@ -5,7 +5,7 @@ use dialoguer::{Input, Password};
 use keyring::Entry;
 
 use crate::{ColourOutput, StreamKind, Style};
-use cvapi::CheckvistClient;
+use cvapi::ApiClient;
 
 const NON_DEFAULT_SERVICE_NAME_ENV_KEY: &str = "CVCAP_CREDENTIAL_ID";
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
@@ -18,7 +18,7 @@ pub fn login_user() -> Result<String> {
     .println()
     .expect("Problem printing colour output");
 
-    let token = CheckvistClient::get_token(
+    let token = ApiClient::get_token(
         "https://checkvist.com/".into(),
         Input::new()
             .with_prompt("Checkvist Username")

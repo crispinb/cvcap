@@ -2,14 +2,14 @@
 mod utils;
 use utils::*;
 
-use cvapi::{Checklist, CheckvistClient, CheckvistError, Task};
+use cvapi::{CheckvistClient, Checklist, ApiClient, CheckvistError, Task};
 use mockito::{mock, Matcher};
 use std::collections::HashMap;
 
 #[test]
 #[should_panic]
 fn client_creation_should_panic_with_invalid_url() {
-    let _client = CheckvistClient::new("".into(), "token".into(), |_token| ());
+    let _client = ApiClient::new("".into(), "token".into(), |_token| ());
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn get_auth_token() {
         .create();
 
     let returned_token =
-        CheckvistClient::get_token(mockito::server_url(), username.into(), remote_key.into())
+        ApiClient::get_token(mockito::server_url(), username.into(), remote_key.into())
             .unwrap();
 
     mock.assert();
@@ -61,7 +61,7 @@ fn authentication_failure_results_in_token_refresh_attempt_then_redo() {
     let mock_success_auth = new_mock_get("/checklists/1.json", new_token, response_json);
 
     // TODO: could change the new() callback to be a closure so it can capture 'new_token' rather than use literal here
-    let client = CheckvistClient::new(mockito::server_url(), old_token.into(), |token| {
+    let client = ApiClient::new(mockito::server_url(), old_token.into(), |token| {
         assert_eq!(
             token, "token",
             "token refresh callback received wrong token value"
@@ -82,7 +82,7 @@ fn refresh_failure_results_in_401_error() {
         .with_status(401)
         .create();
 
-    let client = CheckvistClient::new(mockito::server_url(), String::from("token"), |_token| ());
+    let client = ApiClient::new(mockito::server_url(), String::from("token"), |_token| ());
     let returned_error = client.get_list(1).unwrap_err();
 
     mock_failed_auth.assert();
@@ -98,7 +98,7 @@ fn refresh_failure_results_in_401_error() {
 #[test]
 fn http_error_results_in_ureq_status_error() {
     let mock = mock("GET", "/checklists/1.json").with_status(404).create();
-    let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
+    let client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let returned_error = client.get_list(1).unwrap_err();
 
     mock.assert();
@@ -113,7 +113,7 @@ fn http_error_results_in_ureq_status_error() {
 
 #[test]
 fn network_error_results_in_ureq_transport_error() {
-    let client = CheckvistClient::new("http://localhost".into(), "token".into(), |_token| ());
+    let client = ApiClient::new("http://localhost".into(), "token".into(), |_token| ());
     let returned_error = client.get_tasks(1).unwrap_err();
 
     match returned_error {
@@ -127,7 +127,7 @@ fn network_error_results_in_ureq_transport_error() {
 #[test]
 fn json_decoding_error() {
     let mock = new_mock_get("/checklists/1.json", "token", "something".into());
-    let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
+    let client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
 
     let returned_error = client.get_list(1).unwrap_err();
 
@@ -149,7 +149,7 @@ fn get_list() {
     let response_json = serde_json::to_string(&expected_list).unwrap();
     let mock = new_mock_get("/checklists/1.json", "token", response_json);
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
+    let client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let result = client.get_list(1).unwrap();
 
     mock.assert();
@@ -170,7 +170,7 @@ fn add_list() {
     let response_json = serde_json::to_string(&expected_list).unwrap();
     let mock = new_mock_post("/checklists.json", request_body, response_json);
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
+    let client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let result = client.add_list(new_list).unwrap();
 
     mock.assert();
@@ -187,7 +187,7 @@ fn get_tasks() {
     let task_json = serde_json::to_string(&tasks).unwrap();
     let mock = new_mock_get("/checklists/1/tasks.json", "token", task_json);
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
+    let client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let returned_tasks = client.get_tasks(1).unwrap();
 
     mock.assert();
@@ -205,7 +205,7 @@ fn add_task() {
     let request_body = serde_json::to_value(task.clone()).unwrap();
     let mock = new_mock_post("/checklists/1/tasks.json", request_body, response_body);
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".into(), |_token| ());
+    let client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let returned_task = client.add_task(1, &task).unwrap();
 
     mock.assert();
@@ -224,7 +224,7 @@ fn refresh_auth_token() {
         .with_body(response_body)
         .create();
 
-    let client = CheckvistClient::new(mockito::server_url(), "token".to_string(), |t| {
+    let client = ApiClient::new(mockito::server_url(), "token".to_string(), |t| {
         assert_eq!(
             t, "new token",
             "Token refresh closure received unexpected token"
@@ -243,7 +243,7 @@ fn refresh_auth_token_error_on_failure() {
         .match_body(Matcher::Json(request_body))
         .with_status(401)
         .create();
-    let client = CheckvistClient::new(mockito::server_url(), "token".to_string(), |_t| ());
+    let client = ApiClient::new(mockito::server_url(), "token".to_string(), |_t| ());
 
     let err = client.refresh_token().unwrap_err();
 

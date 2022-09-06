@@ -1,8 +1,8 @@
 mod checkvist_types;
 pub mod sqlite_store;
-pub mod persistent_checkvist_client;
+pub mod sqlite_client;
 
-pub use checkvist_types::{Checklist, Task, CheckvistError, CHECKVIST_DATE_FORMAT};
+pub use checkvist_types::{CheckvistClient, Checklist, Task, CheckvistError, CHECKVIST_DATE_FORMAT};
 
 use log::{error, info};
 use std::cell::RefCell;
@@ -18,7 +18,6 @@ use url::Url;
 struct ApiToken {
     token: String,
 }
-
 
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
@@ -45,13 +44,14 @@ enum ApiResponse<T> {
 //     }
 // }
 
-pub struct CheckvistClient {
+
+pub struct ApiClient {
     base_url: Url,
     api_token: RefCell<String>,
     token_refresh_callback: fn(&str) -> (),
 }
 
-impl CheckvistClient {
+impl ApiClient {
     pub fn new(base_url: String, api_token: String, on_token_refresh: fn(&str) -> ()) -> Self {
         Self {
             base_url: Url::parse(&base_url).expect("Bad base url supplied"),
@@ -60,13 +60,12 @@ impl CheckvistClient {
         }
     }
 
-    // TODO: perhaps build into CheckvistClient::new ? Then we'd need 2 news (one with token)
     pub fn get_token(
         base_url: String,
         username: String,
         remote_key: String,
     ) -> Result<String, CheckvistError> {
-        let url = CheckvistClient::build_endpoint(
+        let url = ApiClient::build_endpoint(
             &Url::parse(&base_url).expect("Bad base URL supplied"),
             vec!["/auth/login.json?version=2"],
         );
@@ -79,7 +78,7 @@ impl CheckvistClient {
     }
 
     pub fn refresh_token(&self) -> Result<(), CheckvistError> {
-        let url = CheckvistClient::build_endpoint(
+        let url = ApiClient::build_endpoint(
             &self.base_url,
             vec!["/auth/refresh_token.json?version=2"],
         );
@@ -96,57 +95,6 @@ impl CheckvistClient {
         (self.token_refresh_callback)(&response.token);
 
         Ok(())
-    }
-
-    pub fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
-        let url = CheckvistClient::build_endpoint(&self.base_url, vec!["/checklists.json"]);
-
-        let response = self.checkvist_get(url)?.into_json()?;
-
-        self.to_results(response)
-    }
-
-    pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
-        let url = CheckvistClient::build_endpoint(
-            &self.base_url,
-            vec!["/checklists/", &list_id.to_string(), ".json"],
-        );
-
-        let response = self.checkvist_get(url)?.into_json()?;
-
-        self.to_result(response)
-    }
-
-    pub fn add_list(&self, list_name: &str) -> Result<Checklist, CheckvistError> {
-        let url = CheckvistClient::build_endpoint(&self.base_url, vec!["/checklists", ".json"]);
-
-        let response = self
-            .checkvist_post(url, HashMap::from([("name", list_name)]))?
-            .into_json()?;
-
-        self.to_result(response)
-    }
-
-    pub fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> {
-        let url = CheckvistClient::build_endpoint(
-            &self.base_url,
-            vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
-        );
-
-        let response = self.checkvist_get(url)?.into_json()?;
-
-        self.to_results(response)
-    }
-
-    pub fn add_task(&self, list_id: u32, task: &Task) -> Result<Task, CheckvistError> {
-        let url = CheckvistClient::build_endpoint(
-            &self.base_url,
-            vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
-        );
-
-        let response = self.checkvist_post(url, task)?.into_json()?;
-
-        self.to_result(response)
     }
 
     // TODO - REFACTOR: combine get & post methods
@@ -260,4 +208,59 @@ impl CheckvistClient {
             .join(&segments.concat())
             .expect("Error building endpoint (shouldn't happen as base_url is known good")
     }
+}
+
+impl CheckvistClient for ApiClient {
+
+    fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
+        let url = ApiClient::build_endpoint(&self.base_url, vec!["/checklists.json"]);
+
+        let response = self.checkvist_get(url)?.into_json()?;
+
+        self.to_results(response)
+    }
+
+    fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
+        let url = ApiClient::build_endpoint(
+            &self.base_url,
+            vec!["/checklists/", &list_id.to_string(), ".json"],
+        );
+
+        let response = self.checkvist_get(url)?.into_json()?;
+
+        self.to_result(response)
+    }
+
+    fn add_list(&self, list_name: &str) -> Result<Checklist, CheckvistError> {
+        let url = ApiClient::build_endpoint(&self.base_url, vec!["/checklists", ".json"]);
+
+        let response = self
+            .checkvist_post(url, HashMap::from([("name", list_name)]))?
+            .into_json()?;
+
+        self.to_result(response)
+    }
+
+    fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> {
+        let url = ApiClient::build_endpoint(
+            &self.base_url,
+            vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
+        );
+
+        let response = self.checkvist_get(url)?.into_json()?;
+
+        self.to_results(response)
+    }
+
+    fn add_task(&self, list_id: u32, task: &Task) -> Result<Task, CheckvistError> {
+        let url = ApiClient::build_endpoint(
+            &self.base_url,
+            vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
+        );
+
+        let response = self.checkvist_post(url, task)?.into_json()?;
+
+        self.to_result(response)
+    }
+
 }
