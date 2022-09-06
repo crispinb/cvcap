@@ -3,11 +3,13 @@ use std::io::{self, Read};
 use anyhow::{anyhow, Context as ErrContext, Error, Result};
 use clap::Args;
 use copypasta::{ClipboardContext, ClipboardProvider};
-use cvapi::{
-    sqlite_client::SqliteClient, sqlite_store::SqliteStore, ApiClient, CheckvistClient, Task,
-};
 use dialoguer::{Confirm, Select};
 use log::error;
+
+use cvapi::{
+    sqlite::{SqliteStore, SqliteSyncClient},
+    ApiClient, CheckvistClient, Task,
+};
 
 use super::{Action, Context, RunType};
 use crate::app::{self, config};
@@ -79,7 +81,7 @@ impl Add {
         );
 
         let store = SqliteStore::init_with_file(&config::config_dir().join("data.db"))?;
-        let client = SqliteClient::new(api_client, store);
+        let client = SqliteSyncClient::new(api_client, store);
         let config = match (context.config.clone(), self.choose_list) {
             (Some(config), false) => config,
             _ => match prompt_for_config(&client)? {
@@ -246,9 +248,9 @@ fn is_content_piped() -> bool {
 }
 
 fn get_lists(client: &dyn CheckvistClient) -> Result<Vec<(u32, String)>, Error> {
-    let available_lists: Vec<(u32, String)> = client.get_lists().map(|lists| {
-         lists.into_iter().map(|list| (list.id, list.name)).collect()
-    })?;
+    let available_lists: Vec<(u32, String)> = client
+        .get_lists()
+        .map(|lists| lists.into_iter().map(|list| (list.id, list.name)).collect())?;
 
     if available_lists.is_empty() {
         Err(anyhow!(app::Error::NoLists))

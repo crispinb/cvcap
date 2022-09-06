@@ -1,15 +1,15 @@
-use crate::{sqlite_store::SqliteStore, ApiClient, Checklist, Task, CheckvistClient, CheckvistError};
+use crate::{sqlite::SqliteStore, ApiClient, Checklist, Task, CheckvistClient, CheckvistError};
 
 /// Alternative to CheckvistClient that performs all ops via SqliteStore
 
-pub struct SqliteClient {
+pub struct SqliteSyncClient {
     api_client: ApiClient,
     store: SqliteStore,
 }
 
-impl SqliteClient {
+impl SqliteSyncClient {
     pub fn new(checkvist_client: ApiClient, store: SqliteStore) -> Self {
-        SqliteClient {
+        SqliteSyncClient {
             api_client: checkvist_client,
             store,
         }
@@ -26,7 +26,7 @@ impl SqliteClient {
 
 }
 
-impl CheckvistClient for SqliteClient {
+impl CheckvistClient for SqliteSyncClient {
     fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
         let lists = self.store.fetch_all_lists()?;
 

@@ -1,7 +1,8 @@
 use chrono::prelude::*;
 use mockito::{mock, Matcher};
-use cvapi::sqlite_client::SqliteClient;
-use cvapi::{sqlite_store::SqliteStore, CheckvistClient, Checklist, ApiClient};
+
+use cvapi::{CheckvistClient, Checklist, ApiClient};
+use cvapi::sqlite::{SqliteSyncClient, SqliteStore};
 
 #[test]
 fn save_and_fetch_lists() {
@@ -18,7 +19,7 @@ fn save_and_fetch_lists() {
 
     let checkvist_client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let sqlite_store = SqliteStore::init_in_memory().unwrap();
-    let client = SqliteClient::new(checkvist_client, sqlite_store);
+    let client = SqliteSyncClient::new(checkvist_client, sqlite_store);
     
     client.sync_lists().unwrap();
     mock.assert();

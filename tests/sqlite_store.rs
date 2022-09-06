@@ -3,7 +3,7 @@ mod utils;
 use utils::*;
 
 use chrono::prelude::*;
-use cvapi::sqlite_store::SqliteStore;
+use cvapi::sqlite::SqliteStore;
 use cvapi::{Checklist, Task};
 use rusqlite::{Connection, Result};
 use std::path::Path;
