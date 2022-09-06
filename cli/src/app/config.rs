@@ -45,11 +45,17 @@ impl Config {
 }
 
 pub fn config_file_path() -> path::PathBuf {
-    match env::var_os(NON_DEFAULT_PATH_ENV_KEY) {
+    let config_dir = config_dir();
+    config_dir.join(CONFIG_FILE_NAME)
+}
+
+pub fn config_dir() -> path::PathBuf {
+    let config_dir = match env::var_os(NON_DEFAULT_PATH_ENV_KEY) {
         Some(path) => path::PathBuf::from(path),
         None => ProjectDirs::from("com", "not10x", "cvcap")
             .expect("OS cannot find HOME dir. Cannot proceed")
             .config_dir()
-            .join(CONFIG_FILE_NAME),
-    }
+            .to_path_buf()
+    };
+    config_dir
 }

@@ -11,7 +11,7 @@ use dialoguer::{Confirm, Select};
 use log::error;
 
 use super::{Action, Context, RunType};
-use crate::app;
+use crate::app::{self, config};
 use crate::colour_output::{ColourOutput, StreamKind, Style};
 use crate::progress_indicator::ProgressIndicator;
 
@@ -78,7 +78,9 @@ impl Add {
                     .unwrap_or(error!("Couldn't save token to keyring"))
             },
         );
-        let store = SqliteStore::init_with_file(Path::new("test.db"))?;
+
+        let store =
+            SqliteStore::init_with_file(&config::config_dir().join("data.db"))?;
         let client = SqliteClient::new(api_client, store);
         let config = match (context.config.clone(), self.choose_list) {
             (Some(config), false) => config,
