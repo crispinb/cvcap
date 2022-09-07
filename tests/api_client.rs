@@ -178,25 +178,27 @@ fn add_list() {
 
 #[test]
 fn get_tasks() {
-    let tasks = vec![Task {
+    let task = vec![Task {
         id: Some(1),
+        list_id: 1,
         position: 1,
         content: "content".to_string(),
     }];
-    let task_json = serde_json::to_string(&tasks).unwrap();
+    let task_json = serde_json::to_string(&task).unwrap();
     let mock = new_mock_get("/checklists/1/tasks.json", "token", task_json);
 
     let client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let returned_tasks = client.get_tasks(1).unwrap();
 
     mock.assert();
-    assert_eq!(tasks, returned_tasks);
+    assert_eq!(task, returned_tasks);
 }
 
 #[test]
 fn add_task() {
     let task = Task {
         id: Some(1),
+        list_id: 1,
         position: 1,
         content: "some text".into(),
     };

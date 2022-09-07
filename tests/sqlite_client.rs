@@ -32,13 +32,15 @@ fn save_and_fetch_lists() {
 fn save_and_fetch_tasks() {
     let tasks: Vec<Task> = (1..50)
         .map(|id| Task {
+            // TODO: parent list?
             id: Some(id),
+            list_id: 1,
             content: "a task".into(),
             position: id as u16,
         })
         .collect();
     let json = serde_json::to_string(&tasks).unwrap();
-    let mock = new_mock_get("/checklists/1/tasks.json", "token", json);
+    let mock = new_mock_get("/checklists/1/tasks.json", "token", json).expect(1);
 
     let api_client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let sqlite_store = SqliteStore::init_in_memory().unwrap();
@@ -48,8 +50,7 @@ fn save_and_fetch_tasks() {
     mock.assert();
     let stored_tasks = client.get_tasks(1).unwrap();
 
-    // assert_eq!(stored_tasks, tasks);
-    assert_ne!(stored_tasks, tasks);
+    assert_eq!(stored_tasks, tasks);
 }
 
 fn new_mock_get(url: &str, token_to_match: &str, response_body: String) -> mockito::Mock {

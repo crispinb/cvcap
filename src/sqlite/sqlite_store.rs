@@ -69,22 +69,37 @@ impl SqliteStore {
 
     pub fn save_task(&self, task: &Task) -> Result<usize> {
         let sql = r#"
-        INSERT INTO task (checkvist_id, content, position)
-        VALUES (?,?,?)
+        INSERT INTO task (checkvist_id, list_id, content, position)
+        VALUES (?,?,?, ?)
         "#;
         let mut stmt = self.conn.prepare_cached(sql)?;
 
-        stmt.execute((task.id, &task.content, task.position))
+        stmt.execute((task.id, task.list_id, &task.content, task.position))
+    }
+
+    pub fn save_tasks(&self, tasks: &Vec<Task>) -> Result<usize> {
+        let sql = r#"
+            INSERT INTO task(checkvist_id, list_id, content, position)
+            VALUES (?, ?,?,?)
+        "#;
+
+        let mut stmt = self.conn.prepare_cached(sql)?;
+        for task in tasks {
+            stmt.execute((task.id, task.list_id, &task.content, task.position))?;
+        }
+
+        Ok(tasks.len())
     }
 
     pub fn fetch_all_tasks(&self) -> Result<Vec<Task>> {
-        let sql = r#"SELECT checkvist_id, content, position FROM task"#;
+        let sql = r#"SELECT checkvist_id, list_id, content, position FROM task"#;
         let mut stmt = self.conn.prepare_cached(sql)?;
         let tasks_iter = stmt.query_map([], |row| {
             Ok(Task {
                 id: row.get(0)?,
-                content: row.get(1)?,
-                position: row.get(2)?,
+                list_id: row.get(1)?,
+                content: row.get(2)?,
+                position: row.get(3)?,
             })
         })?;
 
@@ -119,6 +134,7 @@ fn migrate(conn: &Connection) -> Result<(), rusqlite::Error> {
         CREATE TABLE IF NOT EXISTS task (
             id INTEGER PRIMARY KEY,
             checkvist_id INTEGER UNIQUE,
+            list_id INTEGER,
             content TEXT NOT NULL,
             position INTEGER NOT NULL
         )

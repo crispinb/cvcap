@@ -31,6 +31,7 @@ pub struct Checklist {
 pub struct Task {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
+    pub list_id: u32,
     pub content: String,
     pub position: u16,
 }

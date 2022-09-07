@@ -95,6 +95,7 @@ impl Add {
         };
         let task = Task {
             id: None,
+            list_id: config.list_id,
             content,
             position: 1,
         };

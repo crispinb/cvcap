@@ -44,6 +44,7 @@ fn save_and_retrieve_multiple_lists() {
 fn save_and_retrieve_one_task() {
     let task = Task {
         id: Some(1),
+        list_id: 1,
         content: "content".into(),
         position: 1, // TODO: add date
     };

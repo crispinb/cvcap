@@ -246,6 +246,7 @@ impl CheckvistClient for ApiClient {
         self.to_results(response)
     }
 
+    // TODO: remove task id from params
     fn add_task(&self, list_id: u32, task: &Task) -> Result<Task, CheckvistError> {
         let url = ApiClient::build_endpoint(
             &self.base_url,

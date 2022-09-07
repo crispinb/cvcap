@@ -26,10 +26,8 @@ impl SqliteSyncClient {
 
     pub fn sync_tasks(&self, list_id: u32) -> Result<()> {
         let tasks = self.api_client.get_tasks(list_id)?;
-        dbg!(&tasks);
+        self.store.save_tasks(&tasks)?;
 
-        // TODO: perhaps I actually have t think this thoruhg
-        // self.store.save_task()
         Ok(())
     }
 }
@@ -51,7 +49,9 @@ impl CheckvistClient for SqliteSyncClient {
     }
 
     fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>> {
-        self.api_client.get_tasks(list_id)
+        // TODO: limit to list
+        let tasks = self.store.fetch_all_tasks()?;
+        Ok(tasks)
     }
 
     fn add_task(&self, list_id: u32, task: &Task) -> Result<Task> {
