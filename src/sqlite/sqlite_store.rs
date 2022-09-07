@@ -9,7 +9,6 @@ pub struct SqliteStore {
 // fast large insertions https://github.com/avinassh/fast-sqlite3-inserts/blob/009694f/src/bin/basic_batched.rs
 // upshot: use prepared statements & batch
 
-
 impl SqliteStore {
     pub fn init_in_memory() -> Result<Self> {
         let conn = Connection::open_in_memory()?;
@@ -25,7 +24,6 @@ impl SqliteStore {
         Ok(SqliteStore { conn })
     }
 
-    // TODO: was there struct assistance available in rustqlite or addition?
     pub fn save_list(&self, list: &Checklist) -> Result<usize> {
         let rowcount = self.conn.execute(
             r#"

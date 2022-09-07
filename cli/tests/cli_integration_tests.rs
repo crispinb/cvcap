@@ -1,6 +1,6 @@
 mod test_config;
 mod test_creds;
-use cvapi::{CheckvistClient, Checklist, ApiClient};
+use cvapi::{ApiClient, Checklist, CheckvistClient};
 use test_config::TestCvcapRunConfig;
 
 use predicates::prelude::*;
@@ -9,7 +9,6 @@ use std::sync::Once;
 use temp_dir::TempDir;
 use uuid::Uuid;
 
-// TODO: remove added tasks after tests
 // TODO: how to test interactive login, '-l' flag etc
 
 // All tests share one test list, but we don't want an extra call per test to
@@ -26,7 +25,6 @@ fn run_without_args_shows_help() {
     cmd.assert()
         .stderr(predicate::str::contains("USAGE:"))
         .failure();
-
 }
 
 #[test]

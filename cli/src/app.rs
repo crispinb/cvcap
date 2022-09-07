@@ -24,7 +24,7 @@ pub struct Context {
 pub enum Error {
     MissingPipe,
     LoggedOut,
-    NoLists
+    NoLists,
 }
 
 impl fmt::Display for Error {

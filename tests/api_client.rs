@@ -2,7 +2,7 @@
 mod utils;
 use utils::*;
 
-use cvapi::{CheckvistClient, Checklist, ApiClient, CheckvistError, Task};
+use cvapi::{ApiClient, Checklist, CheckvistClient, CheckvistError, Task};
 use mockito::{mock, Matcher};
 use std::collections::HashMap;
 
@@ -29,8 +29,7 @@ fn get_auth_token() {
         .create();
 
     let returned_token =
-        ApiClient::get_token(mockito::server_url(), username.into(), remote_key.into())
-            .unwrap();
+        ApiClient::get_token(mockito::server_url(), username.into(), remote_key.into()).unwrap();
 
     mock.assert();
     assert_eq!(token, returned_token);

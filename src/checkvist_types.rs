@@ -5,11 +5,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub const CHECKVIST_DATE_FORMAT: &str = "%Y/%m/%d %H:%M:%S %z";
 
 pub trait CheckvistClient {
-    fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError>;
-    fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError>;
-    fn add_list(&self, list_name: &str) -> Result<Checklist, CheckvistError> ;
-    fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> ;
-    fn add_task(&self, list_id: u32, task: &Task) -> Result<Task, CheckvistError> ;
+    fn get_lists(&self) -> Result<Vec<Checklist>>;
+    fn get_list(&self, list_id: u32) -> Result<Checklist>;
+    fn add_list(&self, list_name: &str) -> Result<Checklist>;
+    fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>>;
+    fn add_task(&self, list_id: u32, task: &Task) -> Result<Task>;
 }
 
 #[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
@@ -36,7 +36,7 @@ pub struct Task {
 }
 
 // Checkvist doesn't use a standard date format, so we custom de/ser
-fn de_checkvist_date<'de, D>(de: D) -> Result<DateTime<FixedOffset>, D::Error>
+fn de_checkvist_date<'de, D>(de: D) -> std::result::Result<DateTime<FixedOffset>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -48,13 +48,18 @@ where
     Ok(formatted)
 }
 
-fn se_checkvist_date<S>(list: &DateTime<FixedOffset>, serializer: S) -> Result<S::Ok, S::Error>
+fn se_checkvist_date<S>(
+    list: &DateTime<FixedOffset>,
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     let s = format!("{}", list.format(CHECKVIST_DATE_FORMAT));
     serializer.serialize_str(&s)
 }
+
+pub type Result<T> = std::result::Result<T, CheckvistError>;
 
 #[derive(Debug)]
 pub enum CheckvistError {
@@ -64,7 +69,7 @@ pub enum CheckvistError {
     IoError(std::io::Error),
     TokenRefreshFailedError,
     // TODO - REFACTOR: should we really depend on rusqlite here?
-    SqliteError(rusqlite::Error)
+    SqliteError(rusqlite::Error),
 }
 
 impl fmt::Display for CheckvistError {
@@ -86,7 +91,7 @@ impl std::error::Error for CheckvistError {
             Self::NetworkError(ref err) => Some(err),
             Self::UnknownError { message: _ } => None,
             Self::TokenRefreshFailedError => None,
-            Self::SqliteError(ref err) => Some(err)
+            Self::SqliteError(ref err) => Some(err),
         }
     }
 }

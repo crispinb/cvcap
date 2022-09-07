@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use clap::Args;
 use log::error;
 
-use cvapi::{sqlite::SqliteSyncClient, sqlite::SqliteStore, ApiClient};
+use cvapi::{sqlite::SqliteStore, sqlite::SqliteSyncClient, ApiClient};
 
 use super::{Action, RunType};
 use crate::app;

@@ -1,4 +1,6 @@
-pub use crate::checkvist_types::{CheckvistClient, Checklist, Task, CheckvistError, CHECKVIST_DATE_FORMAT};
+pub use crate::checkvist_types::{
+    Checklist, CheckvistClient, CheckvistError, Task, CHECKVIST_DATE_FORMAT,
+};
 
 use log::{error, info};
 use std::cell::RefCell;
@@ -40,7 +42,6 @@ enum ApiResponse<T> {
 //     }
 // }
 
-
 pub struct ApiClient {
     base_url: Url,
     api_token: RefCell<String>,
@@ -74,10 +75,8 @@ impl ApiClient {
     }
 
     pub fn refresh_token(&self) -> Result<(), CheckvistError> {
-        let url = ApiClient::build_endpoint(
-            &self.base_url,
-            vec!["/auth/refresh_token.json?version=2"],
-        );
+        let url =
+            ApiClient::build_endpoint(&self.base_url, vec!["/auth/refresh_token.json?version=2"]);
 
         info!("Refreshing api token");
         let response: ApiToken = ureq::post(url.as_str())
@@ -207,7 +206,6 @@ impl ApiClient {
 }
 
 impl CheckvistClient for ApiClient {
-
     fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
         let url = ApiClient::build_endpoint(&self.base_url, vec!["/checklists.json"]);
 
@@ -258,5 +256,4 @@ impl CheckvistClient for ApiClient {
 
         self.to_result(response)
     }
-
 }

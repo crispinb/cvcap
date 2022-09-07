@@ -1,4 +1,4 @@
-use crate::{sqlite::SqliteStore, ApiClient, Checklist, Task, CheckvistClient, CheckvistError};
+use crate::{sqlite::SqliteStore, ApiClient, Checklist, CheckvistClient, Result, Task};
 
 /// Alternative to CheckvistClient that performs all ops via SqliteStore
 
@@ -15,8 +15,8 @@ impl SqliteSyncClient {
         }
     }
 
-    /// Placeholder for cli testing. Not yet a real sync 
-    pub fn sync_lists(&self) -> Result<(), CheckvistError> {
+    /// Placeholde for cli testing. Not yet a real sync
+    pub fn sync_lists(&self) -> Result<()> {
         let lists = self.api_client.get_lists()?;
         self.store.temp_delete_lists()?;
         self.store.save_lists(&lists)?;
@@ -24,29 +24,37 @@ impl SqliteSyncClient {
         Ok(())
     }
 
+    pub fn sync_tasks(&self, list_id: u32) -> Result<()> {
+        let tasks = self.api_client.get_tasks(list_id)?;
+        dbg!(&tasks);
+
+        // TODO: perhaps I actually have t think this thoruhg
+        // self.store.save_task()
+        Ok(())
+    }
 }
 
 impl CheckvistClient for SqliteSyncClient {
-    fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
+    fn get_lists(&self) -> Result<Vec<Checklist>> {
         let lists = self.store.fetch_all_lists()?;
 
         Ok(lists)
     }
 
     // TODO: implement delegated methods
-    fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
+    fn get_list(&self, list_id: u32) -> Result<Checklist> {
         self.api_client.get_list(list_id)
     }
 
-    fn add_list(&self, list_name: &str) -> Result<Checklist, CheckvistError> {
+    fn add_list(&self, list_name: &str) -> Result<Checklist> {
         self.api_client.add_list(list_name)
     }
 
-    fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> {
+    fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>> {
         self.api_client.get_tasks(list_id)
     }
 
-    fn add_task(&self, list_id: u32, task: &Task) -> Result<Task, CheckvistError> {
+    fn add_task(&self, list_id: u32, task: &Task) -> Result<Task> {
         self.api_client.add_task(list_id, task)
     }
 }

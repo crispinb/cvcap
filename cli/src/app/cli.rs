@@ -42,7 +42,7 @@ pub enum Command {
     LogOut(action::LogOut),
     /// temporary - syncs list names only
     #[clap(name = "sync")]
-    Sync(action::Sync)
+    Sync(action::Sync),
 }
 
 impl Command {
