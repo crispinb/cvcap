@@ -91,10 +91,12 @@ impl SqliteStore {
         Ok(tasks.len())
     }
 
-    pub fn fetch_all_tasks(&self) -> Result<Vec<Task>> {
-        let sql = r#"SELECT checkvist_id, list_id, content, position FROM task"#;
+    pub fn fetch_tasks_for_list(&self, list_id: u32) -> Result<Vec<Task>> {
+        let sql = r#"
+        SELECT checkvist_id, list_id, content, position FROM task
+        WHERE list_id=?"#;
         let mut stmt = self.conn.prepare_cached(sql)?;
-        let tasks_iter = stmt.query_map([], |row| {
+        let tasks_iter = stmt.query_map([list_id], |row| {
             Ok(Task {
                 id: row.get(0)?,
                 list_id: row.get(1)?,
@@ -112,6 +114,12 @@ impl SqliteStore {
         self.conn.execute(sql, [])?;
         Ok(())
     }
+
+    pub fn temp_delete_tasks(&self, list_id: u32) -> Result<()> {
+        let sql = "delete from task where task.list_id = ?";
+        self.conn.execute(sql, [list_id])?;
+        Ok(())
+    }  
 }
 
 // TODO: scaffold possible future migrations. Table with current schema version will do for now

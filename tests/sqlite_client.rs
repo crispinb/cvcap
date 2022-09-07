@@ -15,12 +15,14 @@ fn save_and_fetch_lists() {
         })
         .collect();
     let json = serde_json::to_string(&lists).unwrap();
-    let mock = new_mock_get("/checklists.json", "token", json);
+    let mock = new_mock_get("/checklists.json", "token", json).expect(2);
 
     let api_client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let sqlite_store = SqliteStore::init_in_memory().unwrap();
     let client = SqliteSyncClient::new(api_client, sqlite_store);
 
+    // sync must be idempotent
+    client.sync_lists().unwrap();
     client.sync_lists().unwrap();
     mock.assert();
     let stored_lists = client.get_lists().unwrap();
@@ -40,12 +42,14 @@ fn save_and_fetch_tasks() {
         })
         .collect();
     let json = serde_json::to_string(&tasks).unwrap();
-    let mock = new_mock_get("/checklists/1/tasks.json", "token", json).expect(1);
+    let mock = new_mock_get("/checklists/1/tasks.json", "token", json).expect(2);
 
     let api_client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
     let sqlite_store = SqliteStore::init_in_memory().unwrap();
     let client = SqliteSyncClient::new(api_client, sqlite_store);
 
+    // sync must be idempotent
+    client.sync_tasks(1).unwrap();
     client.sync_tasks(1).unwrap();
     mock.assert();
     let stored_tasks = client.get_tasks(1).unwrap();

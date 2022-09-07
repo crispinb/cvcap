@@ -51,14 +51,37 @@ fn save_and_retrieve_one_task() {
     let store = SqliteStore::init_in_memory().unwrap();
 
     let saved_count = store.save_task(&task).unwrap();
-    let retrieved = store.fetch_all_tasks().unwrap();
+    let retrieved = store.fetch_tasks_for_list(1).unwrap();
 
     assert_eq!(saved_count, 1);
     assert_eq!(retrieved[0], task);
 }
 
 #[test]
-fn sqlite_file_is_created_if_not_existing() {
+fn tasks_are_retrieved_from_correct_list() {
+    let task = Task {
+        id: Some(1),
+        list_id: 1,
+        content: "content".into(),
+        position: 1, // TODO: add date
+    };
+    let unwanted_task = Task{
+        id: Some(2),
+        list_id: 2,
+        ..task.clone()
+    };
+    let tasks = vec![task, unwanted_task];
+
+    let store = SqliteStore::init_in_memory().unwrap();
+
+    let saved_count = store.save_tasks(&tasks).unwrap();
+    let retrieved = store.fetch_tasks_for_list(1).unwrap();
+
+    assert_eq!(saved_count, 2);
+    assert_eq!(retrieved.len(), 1);
+}
+#[test]
+fn sqlite_file_is_created_if_needed() {
     let temp_dir = TempDir::new().unwrap();
     let f = temp_dir.child("sqlite.db");
 
@@ -68,7 +91,7 @@ fn sqlite_file_is_created_if_not_existing() {
 }
 
 #[test]
-fn sqlite_file_is_read_if_exists() {
+fn existing_sqlite_file_is_read() {
     let list = Checklist {
         id: 1,
         name: "test".into(),
