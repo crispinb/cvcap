@@ -50,12 +50,11 @@ impl CheckvistClient for SqliteSyncClient {
     }
 
     fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>> {
-        // TODO: limit to list
         let tasks = self.store.fetch_tasks_for_list(list_id)?;
         Ok(tasks)
     }
 
-    fn add_task(&self, list_id: u32, task: &Task) -> Result<Task> {
-        self.api_client.add_task(list_id, task)
+    fn add_task(&self, task: &Task) -> Result<Task> {
+        self.api_client.add_task(task)
     }
 }

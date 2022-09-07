@@ -180,7 +180,7 @@ fn add_list() {
 fn get_tasks() {
     let task = vec![Task {
         id: Some(1),
-        list_id: 1,
+        checklist_id: 1,
         position: 1,
         content: "content".to_string(),
     }];
@@ -198,7 +198,7 @@ fn get_tasks() {
 fn add_task() {
     let task = Task {
         id: Some(1),
-        list_id: 1,
+        checklist_id: 1,
         position: 1,
         content: "some text".into(),
     };
@@ -207,7 +207,7 @@ fn add_task() {
     let mock = new_mock_post("/checklists/1/tasks.json", request_body, response_body);
 
     let client = ApiClient::new(mockito::server_url(), "token".into(), |_token| ());
-    let returned_task = client.add_task(1, &task).unwrap();
+    let returned_task = client.add_task(&task).unwrap();
 
     mock.assert();
     assert_eq!(task, returned_task);

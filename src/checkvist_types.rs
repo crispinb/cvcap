@@ -9,7 +9,7 @@ pub trait CheckvistClient {
     fn get_list(&self, list_id: u32) -> Result<Checklist>;
     fn add_list(&self, list_name: &str) -> Result<Checklist>;
     fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>>;
-    fn add_task(&self, list_id: u32, task: &Task) -> Result<Task>;
+    fn add_task(&self, task: &Task) -> Result<Task>;
 }
 
 #[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
@@ -31,7 +31,7 @@ pub struct Checklist {
 pub struct Task {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
-    pub list_id: u32,
+    pub checklist_id: u32,
     pub content: String,
     pub position: u16,
 }

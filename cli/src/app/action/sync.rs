@@ -34,7 +34,7 @@ impl Action for Sync {
 
         ProgressIndicator::new('.', Box::new(|| println!("Syncing lists")), 250)
             .run(|| client.sync_lists().map_err(|e| anyhow!(e)))?;
-        println!("\nLists synced");
+        println!("\nDone");
 
         Ok(RunType::Completed)
     }

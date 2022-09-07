@@ -36,7 +36,7 @@ fn save_and_fetch_tasks() {
         .map(|id| Task {
             // TODO: parent list?
             id: Some(id),
-            list_id: 1,
+            checklist_id: 1,
             content: "a task".into(),
             position: id as u16,
         })

@@ -44,7 +44,7 @@ fn save_and_retrieve_multiple_lists() {
 fn save_and_retrieve_one_task() {
     let task = Task {
         id: Some(1),
-        list_id: 1,
+        checklist_id: 1,
         content: "content".into(),
         position: 1, // TODO: add date
     };
@@ -61,13 +61,13 @@ fn save_and_retrieve_one_task() {
 fn tasks_are_retrieved_from_correct_list() {
     let task = Task {
         id: Some(1),
-        list_id: 1,
+        checklist_id: 1,
         content: "content".into(),
         position: 1, // TODO: add date
     };
-    let unwanted_task = Task{
+    let unwanted_task = Task {
         id: Some(2),
-        list_id: 2,
+        checklist_id: 2,
         ..task.clone()
     };
     let tasks = vec![task, unwanted_task];

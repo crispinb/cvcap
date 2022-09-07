@@ -95,7 +95,7 @@ impl Add {
         };
         let task = Task {
             id: None,
-            list_id: config.list_id,
+            checklist_id: config.list_id,
             content,
             position: 1,
         };
@@ -112,7 +112,7 @@ impl Add {
 
         let add_task = || {
             client
-                .add_task(config.list_id, &task)
+                .add_task(&task)
                 .map(|_| {
                     if context.run_interactively {
                         println!("\nTask added")
