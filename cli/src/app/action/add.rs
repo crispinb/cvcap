@@ -7,7 +7,7 @@ use dialoguer::{Confirm, Select};
 use log::error;
 
 use cvapi::{
-    sqlite::{SqliteStore, SqliteSyncClient},
+    sqlite::{SqliteClient, SqliteStore},
     ApiClient, CheckvistClient, Task,
 };
 
@@ -81,7 +81,7 @@ impl Add {
         );
 
         let store = SqliteStore::init_with_file(&config::config_dir().join("data.db"))?;
-        let client = SqliteSyncClient::new(api_client, store);
+        let client = SqliteClient::new(api_client, store);
         let config = match (context.config.clone(), self.choose_list) {
             (Some(config), false) => config,
             _ => match prompt_for_config(&client)? {

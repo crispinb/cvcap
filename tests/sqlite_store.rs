@@ -3,11 +3,12 @@ mod utils;
 use utils::*;
 
 use chrono::prelude::*;
-use cvapi::sqlite::SqliteStore;
-use cvapi::{Checklist, Task};
 use rusqlite::{Connection, Result};
 use std::path::Path;
 use temp_dir::TempDir;
+
+use cvapi::sqlite::SqliteStore;
+use cvapi::{Checklist, Task};
 
 #[test]
 fn save_and_retrieve_one_list() {

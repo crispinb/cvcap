@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use clap::Args;
 use log::error;
 
-use cvapi::{sqlite::SqliteStore, sqlite::SqliteSyncClient, ApiClient};
+use cvapi::{sqlite::SqliteClient, sqlite::SqliteStore, ApiClient};
 
 use super::{Action, RunType};
 use crate::app;
@@ -30,7 +30,7 @@ impl Action for Sync {
         );
 
         let store = SqliteStore::init_with_file(&app::config::config_dir().join("data.db"))?;
-        let client = SqliteSyncClient::new(api_client, store);
+        let client = SqliteClient::new(api_client, store);
 
         ProgressIndicator::new('.', Box::new(|| println!("Syncing lists")), 250)
             .run(|| client.sync_lists().map_err(|e| anyhow!(e)))?;

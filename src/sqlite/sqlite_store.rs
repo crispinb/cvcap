@@ -123,7 +123,28 @@ impl SqliteStore {
 }
 
 // TODO: scaffold possible future migrations. Table with current schema version will do for now
+// but go as far as we can first with idempotent schema creation
 fn migrate(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute(
+        r#"
+        CREATE TABLE IF NOT EXISTS sync_status (
+            status TEXT PRIMARY KEY UNIQUE,
+            description TEXT NOT NULL
+        )
+        STRICT
+        "#,
+        (),
+    )?;
+    conn.execute(
+        r#"
+        INSERT INTO sync_status (status, description)
+        VALUES ('N', "No sync"),
+                ('L', "sync + local"),
+                ('R', "sync + remote"),
+                ('S', "sync")
+        "#,
+        (),
+    )?;
     conn.execute(
         r#"
         CREATE TABLE IF NOT EXISTS checklist (
@@ -144,11 +165,13 @@ fn migrate(conn: &Connection) -> Result<(), rusqlite::Error> {
             checkvist_id INTEGER UNIQUE,
             checklist_id INTEGER,
             content TEXT NOT NULL,
-            position INTEGER NOT NULL
+            position INTEGER NOT NULL,
+            syncstate TEXT DEFAULT 'N' NOT NULL REFERENCES sync_status (status)
         )
         STRICT
         "#,
         (),
     )?;
+
     Ok(())
 }
