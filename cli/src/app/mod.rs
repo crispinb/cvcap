@@ -7,7 +7,7 @@ use std::fmt;
 
 pub use action::{Action, Add, LogOut, RunType, ShowStatus};
 pub use cli::{Cli, Command};
-pub use config::Config;
+pub use config::{Config, FilePathSource};
 
 pub struct Context {
     pub config: Option<Config>,

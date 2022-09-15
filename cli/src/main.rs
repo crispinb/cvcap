@@ -8,7 +8,7 @@ use colour_output::{ColourOutput, StreamKind, Style};
 use env_logger::Env;
 use log::{error, info};
 
-use app::{creds, Action, Cli, Command, Config, Context, RunType};
+use app::{creds, Action, Cli, Command, Config, FilePathSource, Context, RunType};
 use cvapi::CheckvistError;
 
 // Logging.
@@ -26,7 +26,7 @@ use cvapi::CheckvistError;
 fn main() {
     let cli = Cli::parse();
     let context = Context {
-        config: Config::read_from_file(),
+        config: Config::read_from_file(&FilePathSource::Standard),
         api_token: creds::get_api_token_from_keyring(),
         run_interactively: !cli.quiet,
     };

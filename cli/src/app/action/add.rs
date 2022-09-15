@@ -181,10 +181,10 @@ fn prompt_for_config(client: &CheckvistClient) -> Result<Option<app::Config>, Er
             ))
             .interact()?
         {
-            user_config.write_to_new_file().with_context(|| {
+            user_config.write_to_new_file(&app::FilePathSource::Standard).with_context(|| {
                 format!(
                     "Couldn't save config file to path {:?}",
-                    app::config::config_file_path()
+                    app::config::config_file_path(&app::FilePathSource::Standard)
                 )
             })?;
             ColourOutput::new(StreamKind::Stdout)
@@ -231,6 +231,7 @@ fn select_list(lists: Vec<(u32, String)>) -> Option<app::Config> {
         app::Config {
             list_id: list.0,
             list_name: list.1,
+            bookmarks: None,
         }
     })
 }
