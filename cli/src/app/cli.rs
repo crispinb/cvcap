@@ -25,7 +25,6 @@ pub struct Cli {
     #[clap(short = 'v', long = "verbose", global = true)]
     pub verbose: bool,
     /// Reduces output, and requires no interaction
-    ///
     #[clap(short = 'q', long = "quiet", global = true, conflicts_with = "verbose")]
     pub quiet: bool,
 }
