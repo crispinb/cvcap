@@ -8,13 +8,10 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 #[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
-// only need PartialEq for test, but this doesn't work
-// because: integration tests build differently?
-// #[cfg_attr(all(test), derive(PartialEq))]
 pub struct Checklist {
     pub id: u32,
     pub name: String,
-    // TODO: automatically convert to a date type of some sort when needed
+    // TODO: convert to a date type of some sort when needed
     pub updated_at: String,
     pub task_count: u16,
 }
@@ -25,15 +22,21 @@ pub struct Task {
     pub id: Option<u32>,
     pub content: String,
     pub position: u16,
+    pub parent_id: Option<u32>,
 }
 
-// struct seems a bit overwrought for this, but it turns out simpler
-// than messing with serde_json::Value (see https://play.rust-lang.org/?gist=9e64149fe110c686619185a783e78fcc&version=nightly)
 #[derive(Deserialize)]
 struct ApiToken {
     token: String,
 }
 
+// It would be nice to have more detailed Checkvist error messages,
+// but they're not generally available. Eg. trying to post to the wrong
+// list ID nets an uninformative 403 (presumably because it might be another
+// user's list)
+// TODO: check all the variant sizes - clippy complains this is too large
+//https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err
+// clippy ` cargo clippy --workspace -- -A "clippy::result_large_err"` for now
 #[derive(Debug)]
 pub enum CheckvistError {
     UnknownError { message: String },
@@ -85,39 +88,25 @@ enum ApiResponse<T> {
     CheckvistApiError { message: String },
 }
 
-// TODO - RESEARCH NEEDED:
-//        Ownership problems trying to implement this on ApiResponse
-//        (that don't occur when implementing on CheckVistClilent ??)
-// impl<T> ApiResponse<T> {
-//     fn to_results(&self) -> Result<Vec<T>, CheckvistError> {
-//         match *self {
-//             ApiResponse::ValidCheckvistList(ref v) => Ok(v),
-//             ApiResponse::CheckvistApiError { ref message } => Err(CheckvistError::UnknownError {
-//                 message: message.to_string(),
-//             }),
-//             _ => Err(CheckvistError::UnknownError {
-//                 message: String::new(),
-//             }),
-//         }
-//     }
-// }
-
 pub struct CheckvistClient {
     base_url: Url,
     api_token: RefCell<String>,
-    token_refresh_callback: fn(&str) -> (),
+    token_refresh_callback: Box<dyn Fn(&str)>,
 }
 
 impl CheckvistClient {
-    pub fn new(base_url: String, api_token: String, on_token_refresh: fn(&str) -> ()) -> Self {
+    pub fn new(
+        base_url: &str,
+        api_token: &str,
+        on_token_refresh: Box<dyn Fn(&str)>,
+    ) -> Self {
         Self {
             base_url: Url::parse(&base_url).expect("Bad base url supplied"),
-            api_token: RefCell::new(api_token),
+            api_token: RefCell::new(api_token.into()),
             token_refresh_callback: on_token_refresh,
         }
     }
 
-    // TODO: perhaps build into CheckvistClient::new ? Then we'd need 2 news (one with token)
     pub fn get_token(
         base_url: String,
         username: String,
@@ -203,6 +192,7 @@ impl CheckvistClient {
 
         let response = self.checkvist_post(url, task)?.into_json()?;
 
+        error!("response: {:?}", response);
         self.to_result(response)
     }
 

@@ -2,6 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use super::action;
+use super::context::Context;
 
 const BANNER: &str = r"                           
   _   _   _   _   _  
@@ -50,7 +51,7 @@ impl Command {
 }
 
 impl action::Action for Command {
-    fn run(self, context: super::Context) -> Result<action::RunType> {
+    fn run(self, context: Context) -> Result<action::RunType> {
         match self {
             Command::Add(add) => add.run(context),
             Command::ShowStatus(cmd) => cmd.run(context),

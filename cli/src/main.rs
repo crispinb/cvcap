@@ -1,15 +1,12 @@
-mod app;
-mod colour_output;
-mod progress_indicator;
-
 use anyhow::Error;
 use clap::Parser;
-use colour_output::{ColourOutput, StreamKind, Style};
 use env_logger::Env;
 use log::{error, info};
 
-use app::{creds, Action, Cli, Command, Config, FilePathSource, Context, RunType};
 use cvapi::CheckvistError;
+use cvcap::app;
+use cvcap::app::{context::Context, creds, Action, Cli, Command, RunType};
+use cvcap::colour_output::{ColourOutput, StreamKind, Style};
 
 // Logging.
 // Convention: reserve trace and debug levels for libraries (eg. checkvist api)
@@ -25,12 +22,10 @@ use cvapi::CheckvistError;
 
 fn main() {
     let cli = Cli::parse();
-    let context = Context {
-        config: Config::read_from_file(&FilePathSource::Standard),
-        api_token: creds::get_api_token_from_keyring(),
-        run_interactively: !cli.quiet,
+    let context = match Context::new(!cli.quiet) {
+        Ok(context) => context,
+        Err(e) => std::process::exit(handle_error(e, cli.quiet, "")),
     };
-
     let log_level = if cli.verbose { "DEBUG" } else { "OFF" };
     env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
 
@@ -38,11 +33,11 @@ fn main() {
     match cli
         .subcommand
         .unwrap_or_else(|| Command::default(&cli.task.expect("Arguments error")))
-        .run(context)
+        .run(context.clone())
     {
         Err(err) => {
             error!("Fatal error. Cause: {:?}", err.root_cause());
-            handle_error(err, cli.quiet);
+            std::process::exit(handle_error(err, cli.quiet, &context.keychain_service_name));
         }
         Ok(RunType::Completed) => (),
         Ok(RunType::Cancelled) => println!("Cancelled"),
@@ -50,27 +45,43 @@ fn main() {
     std::process::exit(0);
 }
 
-fn handle_error(err: Error, is_quiet: bool) {
-    // This is pretty hacky. Downcast the concrete error types
+fn handle_error(err: Error, is_quiet: bool, keychain_service_name: &str) -> i32 {
+    // Hacky: downcast the concrete error types
     // requiring specific handling
     match err.root_cause().downcast_ref::<CheckvistError>() {
         Some(CheckvistError::TokenRefreshFailedError) => {
             eprint_logged_out(is_quiet);
-            match creds::delete_api_token() {
+            match creds::delete_api_token(keychain_service_name) {
                 Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
                 _ => info!("Expired api token was deleted"),
             }
         }
         // other checkvist error variants, or other error types
         _possible_app_error => match err.root_cause().downcast_ref::<app::Error>() {
-            Some(app::Error::MissingPipe) => {
-                eprint_nopipe_error(is_quiet);
+            Some(app::Error::MissingPipe) => eprint_nopipe_error(is_quiet),
+            Some(app::Error::BookmarkMissingError(bookmark)) => {
+                eprint_bookmark_missing_error(bookmark, is_quiet)
             }
-            //
-            _all_other_errors => eprint_error(err, is_quiet),
+            Some(app::Error::BookmarkFormatError) => eprint_error( "There is an error in the formatting of your bookmark", is_quiet,),
+            Some(app::Error::InvalidConfigFile(path)) => eprint_error(
+                &format!(
+                    "The cvcap config file \"{}\" is invalid and cannot be read",
+                    path
+                ),
+                is_quiet,
+            ),
+            _all_other_errors => eprint_unexpected_error(err, is_quiet),
         },
     }
-    std::process::exit(1);
+    1
+}
+
+#[inline(always)]
+fn eprint_error(message: &str, is_quiet: bool) {
+    if is_quiet {
+        return;
+    };
+    eprintln!("{}", message);
 }
 
 #[inline(always)]
@@ -98,6 +109,14 @@ For more information try --help"#;
 }
 
 #[inline(always)]
+fn eprint_bookmark_missing_error(bookmark: &str, is_quiet: bool) {
+    if is_quiet {
+        return;
+    };
+    eprintln!("You tried to add an item using bookmark '{}', but that bookmark is not in your cvcap config file", bookmark);
+}
+
+#[inline(always)]
 fn eprint_logged_out(is_quiet: bool) {
     if is_quiet {
         return;
@@ -111,7 +130,7 @@ fn eprint_logged_out(is_quiet: bool) {
 }
 
 #[inline(always)]
-fn eprint_error(err: Error, is_quiet: bool) {
+fn eprint_unexpected_error(err: Error, is_quiet: bool) {
     if is_quiet {
         return;
     }
