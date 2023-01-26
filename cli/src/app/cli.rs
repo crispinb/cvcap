@@ -34,7 +34,7 @@ pub struct Cli {
 pub enum Command {
     /// Capture a task from commandline, clipboard, or stdin
     Add(action::Add),
-    /// Check whether cvcap is logged in, and if it has a default list set
+    /// Check cvcap status: whether logged in and is configured with a default list and/or bookmarks
     #[clap(name = "status")]
     ShowStatus(action::ShowStatus),
     /// Removes all login data for the logged in user

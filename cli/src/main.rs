@@ -4,8 +4,7 @@ use env_logger::Env;
 use log::{error, info};
 
 use cvapi::CheckvistError;
-use cvcap::app;
-use cvcap::app::{context::Context, creds, Action, Cli, Command, RunType};
+use cvcap::app::{self, context::Context, creds, Action, Cli, Command, RunType};
 use cvcap::colour_output::{ColourOutput, StreamKind, Style};
 
 // Logging.
