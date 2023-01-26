@@ -30,7 +30,10 @@ impl Config {
             return Ok(None);
         }
         let config_file = fs::read_to_string(path)?;
-        let config = Some( toml::from_str(&config_file).map_err(|_e| Error::InvalidConfigFile(path.to_string_lossy().into()))?);
+        let config = Some(
+            toml::from_str(&config_file)
+                .map_err(|_e| Error::InvalidConfigFile(path.to_string_lossy().into()))?,
+        );
         Ok(config)
     }
 
@@ -44,7 +47,7 @@ impl Config {
         std::fs::write(path, toml)?;
         Ok(())
     }
-    
+
     // TODO: replace with Config struct custom deserialiser/serialiser pair (otherwise gets clobbered on writing)
     pub fn bookmark(&self, name: &str) -> Result<Option<Bookmark>> {
         if let Some(bookmarks) = &self.bookmarks {

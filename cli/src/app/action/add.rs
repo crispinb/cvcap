@@ -89,7 +89,7 @@ impl Add {
         let (appconfig, save_config) = match (context.config.clone(), self.choose_list) {
             // Prior config, no -l
             (Some(appconfig), false) => (appconfig, false),
-            
+
             // prior config & -l
             (_, _) => {
                 let bookmarks = if let Some(appconfig) = context.config {

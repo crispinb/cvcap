@@ -62,7 +62,10 @@ fn handle_error(err: Error, is_quiet: bool, keychain_service_name: &str) -> i32 
             Some(app::Error::BookmarkMissingError(bookmark)) => {
                 eprint_bookmark_missing_error(bookmark, is_quiet)
             }
-            Some(app::Error::BookmarkFormatError) => eprint_error( "There is an error in the formatting of your bookmark", is_quiet,),
+            Some(app::Error::BookmarkFormatError) => eprint_error(
+                "There is an error in the formatting of your bookmark",
+                is_quiet,
+            ),
             Some(app::Error::InvalidConfigFile(path)) => eprint_error(
                 &format!(
                     "The cvcap config file \"{}\" is invalid and cannot be read",

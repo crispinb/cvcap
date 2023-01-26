@@ -34,7 +34,6 @@ impl Context {
             Ok(config) => config,
             Err(e) => return Err(anyhow!(e)),
         };
-        dbg!(&config);
         let service_url = match env::var_os(CUSTOM_SERVICE_URL_KEY) {
             Some(url) => url.to_string_lossy().into(),
             None => "https://checkvist.com".into(),

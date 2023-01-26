@@ -37,11 +37,10 @@ impl fmt::Display for Error {
             }
             Error::BookmarkMissingError(name) => {
                 write!(f, "No bookmark named {} found", name)
-            },
+            }
             Error::InvalidConfigFile(path) => {
                 write!(f, "The cvcap config file {} could not be understood", path)
-            },
- 
+            }
         }
     }
 }

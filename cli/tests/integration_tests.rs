@@ -10,9 +10,9 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use cvapi::Task;
 use cvcap::app::{
-    creds,
     config::Config,
     context::{self, CUSTOM_CONFIG_FILE_PATH_ENV_KEY, CUSTOM_SERVICE_URL_KEY},
+    creds,
 };
 
 /// These tests are pretty thin - mainly just that the UI requests & reports correctly
@@ -48,7 +48,11 @@ async fn status_reports_default_list_not_configured() {
             "this should not matter!",
         )
         .assert()
-        .stdout(predicate::str::is_match("default list:\\s+❌").expect("bad regex").count(1))
+        .stdout(
+            predicate::str::is_match("default list:\\s+❌")
+                .expect("bad regex")
+                .count(1),
+        )
         .success();
 }
 
@@ -58,10 +62,14 @@ async fn status_reports_user_not_logged_in() {
 
     cmd.arg("status")
         .assert()
-        .stdout(predicate::str::is_match("logged in to Checkvist:\\s+❌").expect("bad regex").count(1))
+        .stdout(
+            predicate::str::is_match("logged in to Checkvist:\\s+❌")
+                .expect("bad regex")
+                .count(1),
+        )
         .success();
 }
- #[tokio::test]
+#[tokio::test]
 async fn status_reports_presence_of_bookmarks() {
     let (mut cmd, _testconfig) = configure_command(HttpResponse::Ok, true, true).await;
 
@@ -188,13 +196,13 @@ struct TestConfig {
 // clear up test resources
 impl std::ops::Drop for TestConfig {
     fn drop(&mut self) {
-        if self.logged_in{ 
-        creds::delete_api_token(&self.keychain_service_name)
-            // NB: this isn't an error where the token was intentionally deleted during
-            // the test, eg. for logouts, failed token refreshes, etc
-            // So we don't want to unwrap and cause a panic here
-            .map_err(|e| println!("Didn't delete API token: {}", e))
-            .ok();
+        if self.logged_in {
+            creds::delete_api_token(&self.keychain_service_name)
+                // NB: this isn't an error where the token was intentionally deleted during
+                // the test, eg. for logouts, failed token refreshes, etc
+                // So we don't want to unwrap and cause a panic here
+                .map_err(|e| println!("Didn't delete API token: {}", e))
+                .ok();
         }
     }
 }
@@ -220,7 +228,7 @@ async fn configure_command(
     };
     let keychain_service_name = if logged_in {
         let service_name = random_service_name();
-        creds::save_api_token_to_keyring(&service_name,&random_name("api-token")).unwrap();
+        creds::save_api_token_to_keyring(&service_name, &random_name("api-token")).unwrap();
         service_name
     } else {
         "cvcap-cli_integration_tests-nonexistent-keyring-service-name".into()

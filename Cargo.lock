@@ -414,11 +414,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "log",
- "mockito",
  "serde",
  "serde_json",
+ "tokio",
  "ureq",
  "url",
+ "wiremock",
 ]
 
 [[package]]
