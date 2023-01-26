@@ -95,11 +95,7 @@ pub struct CheckvistClient {
 }
 
 impl CheckvistClient {
-    pub fn new(
-        base_url: &str,
-        api_token: &str,
-        on_token_refresh: Box<dyn Fn(&str)>,
-    ) -> Self {
+    pub fn new(base_url: &str, api_token: &str, on_token_refresh: Box<dyn Fn(&str)>) -> Self {
         Self {
             base_url: Url::parse(&base_url).expect("Bad base url supplied"),
             api_token: RefCell::new(api_token.into()),

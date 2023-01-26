@@ -259,11 +259,7 @@ async fn add_task_to_list() {
         .expect(1)
         .mount(&mock_server)
         .await;
-    let client = CheckvistClient::new(
-        &mock_server.uri(),
-        "token".into(),
-        Box::new(|_token| ()),
-    );
+    let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
 
     let returned_task = client.add_task(1, &task).unwrap();
 
@@ -287,21 +283,19 @@ async fn add_task_checkvist_api_error() {
     Mock::given(method("POST"))
         .and(path("/checklists/1/tasks.json"))
         .and(body_partial_json(json!(task)))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!(HashMap::from([( "message", "error detail" )]))))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!(HashMap::from([("message", "error detail")]))),
+        )
         .expect(1)
         .mount(&mock_server)
         .await;
-    
-    let client = CheckvistClient::new(
-        &mock_server.uri(),
-        "token".into(),
-        Box::new(|_token| ()),
-    );
+
+    let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
 
     let returned_task = client.add_task(1, &task).unwrap_err();
-dbg!(&returned_task);
+    dbg!(&returned_task);
     assert!(
         matches!(returned_task, CheckvistError::UnknownError{message: msg} if msg == "error detail")
     );
 }
-
