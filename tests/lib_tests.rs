@@ -267,12 +267,7 @@ async fn add_task_to_list() {
 }
 
 #[tokio::test]
-// Checkvist's own API errors are in the format:
-// {"message": "error detail"}
-// Examples:
-//   {"message":"Invalid parent_id: 5885799"}
-//   {"message":"The list doesn't exist or is not available to you"}
-async fn add_task_checkvist_api_error() {
+async fn add_task_to_invalid_list_error() {
     let task = Task {
         id: Some(1),
         position: 1,
@@ -285,7 +280,7 @@ async fn add_task_checkvist_api_error() {
         .and(body_partial_json(json!(task)))
         .respond_with(
             ResponseTemplate::new(200)
-                .set_body_json(json!(HashMap::from([("message", "error detail")]))),
+                .set_body_json(json!(HashMap::from([("message", "The list doesn't exist or is not available to you")]))),
         )
         .expect(1)
         .mount(&mock_server)
@@ -294,8 +289,38 @@ async fn add_task_checkvist_api_error() {
     let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
 
     let returned_task = client.add_task(1, &task).unwrap_err();
-    dbg!(&returned_task);
     assert!(
-        matches!(returned_task, CheckvistError::UnknownError{message: msg} if msg == "error detail")
+        matches!(returned_task, CheckvistError::InvalidListError)
     );
 }
+
+
+#[tokio::test]
+async fn add_task_to_invalid_parent_task_error() {
+    let task = Task {
+        id: Some(1),
+        position: 1,
+        content: "some text".into(),
+        parent_id: Some(2),
+    };
+    let mock_server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/checklists/1/tasks.json"))
+        .and(body_partial_json(json!(task)))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(json!(HashMap::from([("message", "Invalid parent_id")]))),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
+
+    let returned_task = client.add_task(1, &task).unwrap_err();
+    assert!(
+        matches!(returned_task, CheckvistError::InvalidParentIdError)
+    );
+}
+
+

@@ -39,6 +39,8 @@ struct ApiToken {
 // clippy ` cargo clippy --workspace -- -A "clippy::result_large_err"` for now
 #[derive(Debug)]
 pub enum CheckvistError {
+    InvalidParentIdError,
+    InvalidListError,
     UnknownError { message: String },
     NetworkError(ureq::Error),
     // used by serde_json for decoding errors
@@ -51,6 +53,8 @@ impl fmt::Display for CheckvistError {
         match *self {
             Self::IoError(ref err) => write!(f, "{:?}", err),
             Self::NetworkError(ref err) => write!(f, "{:?}", err),
+            Self::InvalidListError => write!(f, "You tried to add a task to a list that can't be found, or you don't have permission to access"),
+            Self::InvalidParentIdError => write!(f, "You  tried to add a task to a parent task that can't be found"),
             Self::UnknownError { ref message } => write!(f, "{}", message),
             Self::TokenRefreshFailedError => write!(f, "Could not refresh token"),
         }
@@ -62,8 +66,8 @@ impl std::error::Error for CheckvistError {
         match *self {
             Self::IoError(ref err) => Some(err),
             Self::NetworkError(ref err) => Some(err),
-            Self::UnknownError { message: _ } => None,
             Self::TokenRefreshFailedError => None,
+            _ => None,
         }
     }
 }
@@ -287,9 +291,12 @@ impl CheckvistClient {
                 error!("Checkvist API returned JSON decoded to unexpected type");
                 panic!("Something irrecoverable happened")
             }
-            // Q: should we parse out known errors here? (eg auth). But it's all based on an (only assumed stable) 'message' string so would hardly be reliable, but then could have a fallback type
             ApiResponse::CheckvistApiError { message } => {
-                Err(CheckvistError::UnknownError { message })
+                match message {
+                    m if m.contains("The list doesn't exist or is not available to you") => Err(CheckvistError::InvalidListError),
+                    m if m.contains("Invalid parent_id") => Err(CheckvistError::InvalidParentIdError),
+                    _ => Err(CheckvistError::UnknownError { message }),
+                }
             }
         }
     }
