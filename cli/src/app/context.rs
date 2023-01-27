@@ -1,3 +1,7 @@
+/// Provides configuration information needed for the cvcap app at runtime
+/// The base checkvist url, path to the toml config file, and name for the
+/// OS-dependent keychain used for storing Checkvist API credentials, can
+/// all be customised via env vars. 
 use std::env;
 use std::path::PathBuf;
 
@@ -7,11 +11,13 @@ use directories::ProjectDirs;
 use super::config::Config;
 use super::creds;
 
-/// TODO: document
-// TODO: generalise standard-vs-via-env
 const KEYCHAIN_SERVICE_NAME: &str = "cvcap-api-token";
+/// Environment variable to customise the name of the keychain or other OS-dependent
+/// service used to store user credentials
 pub const CUSTOM_SERVICE_NAME_ENV_KEY: &str = "CVCAP_CREDENTIAL_ID";
+/// Environment variable for customising the base Checkvist API url
 pub const CUSTOM_SERVICE_URL_KEY: &str = "CVCAP_SERVICE_URL";
+/// Environment variable for customising the path to the cvcap config file (toml format)
 pub const CUSTOM_CONFIG_FILE_PATH_ENV_KEY: &str = "CVCAP_CONFIG_FILE_PATH";
 const CONFIG_FILE_NAME: &str = "cvcap.toml";
 
