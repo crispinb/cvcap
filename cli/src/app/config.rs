@@ -1,12 +1,11 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use url::Url;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use super::Error;
+use super::{Error, bookmark::Bookmark};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Config {
@@ -14,13 +13,7 @@ pub struct Config {
     pub list_id: u32,
     #[serde(rename = "default_list_name")]
     pub list_name: String,
-    // TODO: so how to make this option in TOML? And why has it changed??
     pub bookmarks: Option<HashMap<String, String>>,
-}
-
-pub struct Bookmark {
-    pub list_id: u32,
-    pub parent_task_id: Option<u32>,
 }
 
 impl Config {
@@ -48,38 +41,15 @@ impl Config {
         Ok(())
     }
 
-    // TODO: replace with Config struct custom deserialiser/serialiser pair (otherwise gets clobbered on writing)
     pub fn bookmark(&self, name: &str) -> Result<Option<Bookmark>> {
         let Some(bookmarks) = &self.bookmarks else {
             return Ok(None);
         };
-        let Some(bookmark) = bookmarks.get(name) else {
+        let Some(bookmark_string) = bookmarks.get(name) else {
             return Ok(None);
         };
-        let bookmark_url = Url::parse(bookmark).map_err(|_| Error::BookmarkFormatError)?;
-        let url_segments = bookmark_url
-            .path_segments()
-            .map(|s| s.collect::<Vec<_>>())
-            .ok_or(Error::BookmarkFormatError)?;
-        match url_segments[..] {
-            ["checklists", list_idstr] => {
-                let list_id: u32 = list_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
-                Ok(Some(Bookmark {
-                    list_id,
-                    parent_task_id: None,
-                }))
-            }
-            ["checklists", list_idstr, "tasks", task_idstr] => {
-                let list_id: u32 = list_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
-                let parent_task_id: u32 =
-                    task_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
-                Ok(Some(Bookmark {
-                    list_id,
-                    parent_task_id: Some(parent_task_id),
-                }))
-            }
-            _ => Err(anyhow!(Error::BookmarkFormatError)),
-        }
+        let bookmark: Bookmark = Bookmark::try_from(bookmark_string.as_str())?;
+        Ok(Some(bookmark))
     }
 }
 

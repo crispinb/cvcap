@@ -2,13 +2,13 @@ use std::io::{self, Read};
 
 use anyhow::{anyhow, Context as ErrContext, Result};
 use clap::Args;
-use copypasta::{ClipboardContext, ClipboardProvider};
 use cvapi::{CheckvistClient, Task};
 use dialoguer::{Confirm, Select};
 use log::error;
 
 use super::{Action, RunType};
 use crate::app::{self, config, context, creds};
+use crate::clipboard;
 use crate::colour_output::{ColourOutput, StreamKind, Style};
 use crate::progress_indicator::ProgressIndicator;
 
@@ -207,10 +207,20 @@ impl Add {
         }
     }
 
+    fn get_content_from_stdin(&self) -> Result<Option<String>> {
+        if !is_content_piped() {
+            return Err(anyhow!(app::Error::MissingPipe));
+        }
+        let mut buffer = String::new();
+
+        io::stdin().lock().read_to_string(&mut buffer)?;
+        Ok(Some(buffer))
+    }
+
     fn get_content_from_clipboard(&self, is_interactive: bool) -> Result<Option<String>> {
-        let box_err_converter = |e| anyhow!("Error getting clipboard text: {:?}", e);
-        let mut ctx = ClipboardContext::new().map_err(box_err_converter)?;
-        let cliptext = ctx.get_contents().map_err(box_err_converter)?;
+        let Some(cliptext) = clipboard::get_clipboard_as_string() else {
+            return Err(anyhow!("Couldn't get clipboard contents"));
+        };
         if !is_interactive
             || Confirm::new()
                 .with_prompt(format!(r#"Add "{}" as a new task?"#, cliptext))
@@ -221,16 +231,6 @@ impl Add {
             // indicates cancellation
             Ok(None)
         }
-    }
-
-    fn get_content_from_stdin(&self) -> Result<Option<String>> {
-        if !is_content_piped() {
-            return Err(anyhow!(app::Error::MissingPipe));
-        }
-        let mut buffer = String::new();
-
-        io::stdin().lock().read_to_string(&mut buffer)?;
-        Ok(Some(buffer))
     }
 }
 

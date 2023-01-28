@@ -4,7 +4,7 @@ use env_logger::Env;
 use log::{error, info};
 
 use cvapi::CheckvistError;
-use cvcap::app::{self, context::Context, creds, Action, Cli, Command, RunType};
+use cvcap::{context::Context, creds, Action, Cli, Command, Error as AppError, RunType};
 use cvcap::colour_output::{ColourOutput, StreamKind, Style};
 
 // Logging.
@@ -58,16 +58,16 @@ fn handle_error(err: Error, is_quiet: bool, keychain_service_name: &str) -> i32 
             }
         }
         // app errors are wrapped in Anyhow::Error
-        _possible_app_error => match err.root_cause().downcast_ref::<app::Error>() {
-            Some(app::Error::MissingPipe) => eprint_nopipe_error(is_quiet),
-            Some(app::Error::BookmarkMissingError(bookmark)) => {
+        _possible_app_error => match err.root_cause().downcast_ref::<AppError>() {
+            Some(AppError::MissingPipe) => eprint_nopipe_error(is_quiet),
+            Some(AppError::BookmarkMissingError(bookmark)) => {
                 eprint_bookmark_missing_error(bookmark, is_quiet)
             }
-            Some(app::Error::BookmarkFormatError) => eprint_error(
+            Some(AppError::BookmarkFormatError) => eprint_error(
                 "There is an error in the formatting of your bookmark",
                 is_quiet,
             ),
-            Some(app::Error::InvalidConfigFile(path)) => eprint_error(
+            Some(AppError::InvalidConfigFile(path)) => eprint_error(
                 &format!(
                     "The cvcap config file \"{}\" is invalid and cannot be read",
                     path

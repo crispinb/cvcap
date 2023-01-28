@@ -1,8 +1,10 @@
-pub mod action;
-mod cli;
 pub mod config;
 pub mod context;
 pub mod creds;
+
+mod action;
+mod bookmark;
+mod cli;
 
 use std::fmt;
 

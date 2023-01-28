@@ -9,7 +9,7 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use cvapi::Task;
-use cvcap::app::{
+use cvcap::{
     config::Config,
     context::{self, CUSTOM_CONFIG_FILE_PATH_ENV_KEY, CUSTOM_SERVICE_URL_KEY},
     creds,
