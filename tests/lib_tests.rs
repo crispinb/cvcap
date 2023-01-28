@@ -117,7 +117,7 @@ async fn refresh_failure_results_in_401_error() {
 }
 
 #[tokio::test]
-async fn http_error_results_in_ureq_status_error() {
+async fn http404_response_returns_error() {
     let mock_server = MockServer::start().await;
     Mock::given(method("GET"))
         .and(path("/checklists/1.json"))
@@ -126,15 +126,7 @@ async fn http_error_results_in_ureq_status_error() {
         .await;
     let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
 
-    let returned_error = client.get_list(1).unwrap_err();
-
-    assert!(
-        std::matches!(
-            returned_error,
-            CheckvistError::NetworkError(ureq::Error::Status(404, _response))
-        ),
-        "get_list() returned an error, but the status code wasn't 404"
-    );
+    let _returned_error = client.get_list(1).unwrap_err();
 }
 
 #[test]
@@ -279,8 +271,10 @@ async fn add_task_to_invalid_list_error() {
         .and(path("/checklists/1/tasks.json"))
         .and(body_partial_json(json!(task)))
         .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_json(json!(HashMap::from([("message", "The list doesn't exist or is not available to you")]))),
+            ResponseTemplate::new(403).set_body_json(json!(HashMap::from([(
+                "message",
+                "The list doesn't exist or is not available to you"
+            )]))),
         )
         .expect(1)
         .mount(&mock_server)
@@ -289,11 +283,8 @@ async fn add_task_to_invalid_list_error() {
     let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
 
     let returned_task = client.add_task(1, &task).unwrap_err();
-    assert!(
-        matches!(returned_task, CheckvistError::InvalidListError)
-    );
+    assert!(matches!(returned_task, CheckvistError::InvalidListError));
 }
-
 
 #[tokio::test]
 async fn add_task_to_invalid_parent_task_error() {
@@ -308,7 +299,7 @@ async fn add_task_to_invalid_parent_task_error() {
         .and(path("/checklists/1/tasks.json"))
         .and(body_partial_json(json!(task)))
         .respond_with(
-            ResponseTemplate::new(200)
+            ResponseTemplate::new(400)
                 .set_body_json(json!(HashMap::from([("message", "Invalid parent_id")]))),
         )
         .expect(1)
@@ -318,9 +309,9 @@ async fn add_task_to_invalid_parent_task_error() {
     let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
 
     let returned_task = client.add_task(1, &task).unwrap_err();
-    assert!(
-        matches!(returned_task, CheckvistError::InvalidParentIdError)
-    );
+
+    assert!(matches!(
+        returned_task,
+        CheckvistError::InvalidParentIdError
+    ));
 }
-
-

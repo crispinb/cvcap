@@ -57,7 +57,6 @@ impl Config {
                     .path_segments()
                     .map(|s| s.collect::<Vec<_>>())
                     .ok_or(Error::BookmarkFormatError)?;
-                println!("segments: {:?}", url_segments);
                 match url_segments[..] {
                     ["checklists", list_idstr] => {
                         let list_id: u32 =

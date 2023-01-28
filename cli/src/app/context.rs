@@ -1,7 +1,7 @@
 /// Provides configuration information needed for the cvcap app at runtime
 /// The base checkvist url, path to the toml config file, and name for the
 /// OS-dependent keychain used for storing Checkvist API credentials, can
-/// all be customised via env vars. 
+/// all be customised via env vars.
 use std::env;
 use std::path::PathBuf;
 

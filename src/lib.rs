@@ -30,10 +30,6 @@ struct ApiToken {
     token: String,
 }
 
-// It would be nice to have more detailed Checkvist error messages,
-// but they're not generally available. Eg. trying to post to the wrong
-// list ID nets an uninformative 403 (presumably because it might be another
-// user's list)
 // TODO: check all the variant sizes - clippy complains this is too large
 //https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err
 // clippy ` cargo clippy --workspace -- -A "clippy::result_large_err"` for now
@@ -74,7 +70,36 @@ impl std::error::Error for CheckvistError {
 
 impl From<ureq::Error> for CheckvistError {
     fn from(err: ureq::Error) -> Self {
-        CheckvistError::NetworkError(err)
+        match err {
+            ureq::Error::Status(status, response) => {
+                if let Ok(response_json) = response.into_json::<HashMap<String, String>>() {
+                    let default_msg = String::new();
+                    let message = response_json.get("message").unwrap_or(&default_msg);
+                    if status == 403
+                        && message.contains("The list doesn't exist or is not available to you")
+                    {
+                        CheckvistError::InvalidListError
+                    } else if status == 400 && message.contains("Invalid parent_id") {
+                        CheckvistError::InvalidParentIdError
+                    } else {
+                        // would prefer to include the ureq::Error in a NetworkError, but into_json
+                        // consumes it
+                        CheckvistError::UnknownError {
+                            message: format!(
+                                "Unexpected network error received from ureq. Status: {}",
+                                status
+                            ),
+                        }
+                    }
+                } else {
+                    CheckvistError::UnknownError {
+                        message: "Couldn't parse ureq error text as json".into(),
+                    }
+                }
+            }
+            // ureq::Errror::Transport
+            _ => CheckvistError::NetworkError(err),
+        }
     }
 }
 
@@ -101,7 +126,7 @@ pub struct CheckvistClient {
 impl CheckvistClient {
     pub fn new(base_url: &str, api_token: &str, on_token_refresh: Box<dyn Fn(&str)>) -> Self {
         Self {
-            base_url: Url::parse(&base_url).expect("Bad base url supplied"),
+            base_url: Url::parse(base_url).expect("Bad base url supplied"),
             api_token: RefCell::new(api_token.into()),
             token_refresh_callback: on_token_refresh,
         }
@@ -196,7 +221,7 @@ impl CheckvistClient {
         self.to_result(response)
     }
 
-    // TODO - REFACTOR: combine get & post methods
+    // TODO: - REFACTOR: combine get & post methods
     fn checkvist_post<T: serde::Serialize>(
         &self,
         url: Url,
@@ -213,26 +238,22 @@ impl CheckvistClient {
                             // Self has a new token, so we must rebuild the request
                             let request = ureq::post(url.as_str())
                                 .set("X-Client-token", &self.api_token.borrow().clone());
-                            request
-                                .send_json(&payload)
-                                // without this, the match (which is the return value of the or_else
-                                // closure) is of type Result<Response, ureq::Error>.
-                                // That's OK in this arm with Ok(Response), but conflicts
-                                // with the Err arm which returns an Err(CheckvistError)
-                                .map_err(CheckvistError::NetworkError)
+                            Ok(request.send_json(&payload)?)
                         }
 
-                        // failed to refresh token
+                        // CheckvistError::TokenRefreshFailedError
                         Err(err) => Err(err),
                     }
                 }
-                err => Err(CheckvistError::NetworkError(err)),
+                // let CheckvistError From handle
+                err => Err(err)?,
             }
         })?;
 
         Ok(response)
     }
 
+    // TODO: - REFACTOR: combine get & post methods
     fn checkvist_get(&self, url: Url) -> Result<ureq::Response, CheckvistError> {
         let request =
             ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
@@ -245,20 +266,15 @@ impl CheckvistClient {
                             // Self has a new token, so we must rebuild the request
                             let request = ureq::get(url.as_str())
                                 .set("X-Client-token", &self.api_token.borrow().clone());
-                            request
-                                .call()
-                                // without this, the match (which is the return value of the or_else
-                                // closure) is of type Result<Response, ureq::Error>.
-                                // That's OK in this arm with Ok(Response), but conflicts
-                                // with the Err arm which returns an Err(CheckvistError)
-                                .map_err(CheckvistError::NetworkError)
+                            Ok(request.call()?)
                         }
 
-                        // failed to refresh token
+                        // CheckvistError::TokenRefreshFailedError
                         Err(err) => Err(err),
                     }
                 }
-                err => Err(CheckvistError::NetworkError(err)),
+
+                err => Err(err)?,
             }
         })?;
 
@@ -267,7 +283,7 @@ impl CheckvistClient {
 
     // Utility Methods
 
-    // TODO - RESEARCH NEEDED:
+    // TODO:  RESEARCH NEEDED:
     //        how to merge with to_result?
     // check JSON implementation in Programming Rust, p.234 (Enums ch).
     // For arrays it nests vecs of itself (aot APIResponse which has Vec<T>)
@@ -292,18 +308,13 @@ impl CheckvistClient {
                 panic!("Something irrecoverable happened")
             }
             ApiResponse::CheckvistApiError { message } => {
-                match message {
-                    m if m.contains("The list doesn't exist or is not available to you") => Err(CheckvistError::InvalidListError),
-                    m if m.contains("Invalid parent_id") => Err(CheckvistError::InvalidParentIdError),
-                    _ => Err(CheckvistError::UnknownError { message }),
-                }
+                Err(CheckvistError::UnknownError { message })
             }
         }
     }
 
     // Utility Functions
-
-    // TODO - RESEARCH NEEDED:
+    // TODO:  RESEARCH NEEDED:
     //        wanted to replace Vec<&str> with Vec<std::path::Path>, but get type error
     fn build_endpoint(base_url: &Url, segments: Vec<&str>) -> Url {
         base_url

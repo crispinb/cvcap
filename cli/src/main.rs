@@ -45,17 +45,19 @@ fn main() {
 }
 
 fn handle_error(err: Error, is_quiet: bool, keychain_service_name: &str) -> i32 {
+    // CheckVistError
     // Hacky: downcast the concrete error types
     // requiring specific handling
     match err.root_cause().downcast_ref::<CheckvistError>() {
-        Some(CheckvistError::TokenRefreshFailedError) => {
-            eprint_logged_out(is_quiet);
+        Some(CheckvistError::InvalidListError) => eprint_error("Couldn't find or access the list you are trying to add to.\nAre you using an invalid bookmark?", is_quiet),
+        Some(CheckvistError::InvalidParentIdError) => eprint_error("Couldn't find the task you are trying to add a child task to.\nAre you using an valid bookmark?", is_quiet),
+        Some(CheckvistError::TokenRefreshFailedError) => { eprint_logged_out(is_quiet);
             match creds::delete_api_token(keychain_service_name) {
                 Err(err) => error!("Something went wrong deleting invalid api token: {}", err),
                 _ => info!("Expired api token was deleted"),
             }
         }
-        // other checkvist error variants, or other error types
+        // app errors are wrapped in Anyhow::Error
         _possible_app_error => match err.root_cause().downcast_ref::<app::Error>() {
             Some(app::Error::MissingPipe) => eprint_nopipe_error(is_quiet),
             Some(app::Error::BookmarkMissingError(bookmark)) => {
@@ -83,7 +85,12 @@ fn eprint_error(message: &str, is_quiet: bool) {
     if is_quiet {
         return;
     };
-    eprintln!("{}", message);
+
+    let out = ColourOutput::new(StreamKind::Stderr);
+    out.append(format!("\nError: "), Style::Error)
+        .append(message, Style::Normal)
+        .println()
+        .expect("problem styling error text");
 }
 
 #[inline(always)]
@@ -115,7 +122,12 @@ fn eprint_bookmark_missing_error(bookmark: &str, is_quiet: bool) {
     if is_quiet {
         return;
     };
-    eprintln!("You tried to add an item using bookmark '{}', but that bookmark is not in your cvcap config file", bookmark);
+    let msg = format!("You tried to add an item using bookmark '{}', but that bookmark is not in your cvcap config file", bookmark);
+    let out = ColourOutput::new(StreamKind::Stderr);
+    out.append(format!("\nError: "), Style::Error)
+        .append(msg, Style::Normal)
+        .println()
+        .expect("problem styling error text");
 }
 
 #[inline(always)]
@@ -142,9 +154,10 @@ fn eprint_unexpected_error(err: Error, is_quiet: bool) {
 
     If you want to report this, fill out an issue at 
     {}.
-    To gather more details that might help solve issue, 
-    run the same command again with the '-v' switch,
-    and copy the output into the issue.
+
+    To gather more details that might help solve the issue, 
+    run the same command again with the '-v' switch, and
+    copy the output into the issue.
             "#,
         "https://github.com/crispinb/cvcap/issues"
     );
