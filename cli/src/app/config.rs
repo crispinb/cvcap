@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use super::{Error, bookmark::Bookmark};
+use super::{bookmark::Bookmark, Error};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Config {

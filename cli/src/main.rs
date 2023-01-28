@@ -4,8 +4,8 @@ use env_logger::Env;
 use log::{error, info};
 
 use cvapi::CheckvistError;
-use cvcap::{context::Context, creds, Action, Cli, Command, Error as AppError, RunType};
 use cvcap::colour_output::{ColourOutput, StreamKind, Style};
+use cvcap::{context::Context, creds, Action, Cli, Command, Error as AppError, RunType};
 
 // Logging.
 // Convention: reserve trace and debug levels for libraries (eg. checkvist api)
