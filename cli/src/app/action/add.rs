@@ -237,18 +237,17 @@ impl Add {
 /// returns (listid, list name, save list to new config)
 fn prompt_for_list(client: &CheckvistClient) -> Option<(u32, String, bool)> {
     let lists_available = get_lists(client).ok()?;
-    if let Some((list_id, list_name)) = select_list(lists_available) {
-        let save_list_as_new_default = Confirm::new()
-            .with_prompt(format!(
-                "Do you want to save '{}' as your default list for future task capture?",
-                list_name
-            ))
-            .interact()
-            .ok()?;
-        Some((list_id, list_name, save_list_as_new_default))
-    } else {
-        None
-    }
+    let Some((list_id, list_name)) = select_list(lists_available) else {
+        return None;
+    };
+    let save_list_as_new_default = Confirm::new()
+        .with_prompt(format!(
+            "Do you want to save '{}' as your default list for future task capture?",
+            list_name
+        ))
+        .interact()
+        .ok()?;
+    Some((list_id, list_name, save_list_as_new_default))
 }
 
 fn select_list(lists: Vec<(u32, String)>) -> Option<(u32, String)> {

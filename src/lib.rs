@@ -72,28 +72,27 @@ impl From<ureq::Error> for CheckvistError {
     fn from(err: ureq::Error) -> Self {
         match err {
             ureq::Error::Status(status, response) => {
-                if let Ok(response_json) = response.into_json::<HashMap<String, String>>() {
-                    let default_msg = String::new();
-                    let message = response_json.get("message").unwrap_or(&default_msg);
-                    if status == 403
-                        && message.contains("The list doesn't exist or is not available to you")
-                    {
-                        CheckvistError::InvalidListError
-                    } else if status == 400 && message.contains("Invalid parent_id") {
-                        CheckvistError::InvalidParentIdError
-                    } else {
-                        // would prefer to include the ureq::Error in a NetworkError, but into_json
-                        // consumes it
-                        CheckvistError::UnknownError {
-                            message: format!(
-                                "Unexpected network error received from ureq. Status: {}",
-                                status
-                            ),
-                        }
-                    }
+                let Ok(response_json) = response.into_json::<HashMap<String, String>>() else {
+                    return CheckvistError::UnknownError {
+                       message: "Couldn't parse ureq error text as json".into(),
+                    };
+                };
+                let default_msg = String::new();
+                let message = response_json.get("message").unwrap_or(&default_msg);
+                if status == 403
+                    && message.contains("The list doesn't exist or is not available to you")
+                {
+                    CheckvistError::InvalidListError
+                } else if status == 400 && message.contains("Invalid parent_id") {
+                    CheckvistError::InvalidParentIdError
                 } else {
+                    // would prefer to include the ureq::Error in a NetworkError, but into_json
+                    // consumes it
                     CheckvistError::UnknownError {
-                        message: "Couldn't parse ureq error text as json".into(),
+                        message: format!(
+                            "Unexpected network error received from ureq. Status: {}",
+                            status
+                        ),
                     }
                 }
             }

@@ -50,39 +50,35 @@ impl Config {
 
     // TODO: replace with Config struct custom deserialiser/serialiser pair (otherwise gets clobbered on writing)
     pub fn bookmark(&self, name: &str) -> Result<Option<Bookmark>> {
-        if let Some(bookmarks) = &self.bookmarks {
-            if let Some(bookmark) = bookmarks.get(name) {
-                let bookmark_url = Url::parse(bookmark).map_err(|_| Error::BookmarkFormatError)?;
-                let url_segments = bookmark_url
-                    .path_segments()
-                    .map(|s| s.collect::<Vec<_>>())
-                    .ok_or(Error::BookmarkFormatError)?;
-                match url_segments[..] {
-                    ["checklists", list_idstr] => {
-                        let list_id: u32 =
-                            list_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
-                        Ok(Some(Bookmark {
-                            list_id,
-                            parent_task_id: None,
-                        }))
-                    }
-                    ["checklists", list_idstr, "tasks", task_idstr] => {
-                        let list_id: u32 =
-                            list_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
-                        let parent_task_id: u32 =
-                            task_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
-                        Ok(Some(Bookmark {
-                            list_id,
-                            parent_task_id: Some(parent_task_id),
-                        }))
-                    }
-                    _ => Err(anyhow!(Error::BookmarkFormatError)),
-                }
-            } else {
-                Ok(None)
+        let Some(bookmarks) = &self.bookmarks else {
+            return Ok(None);
+        };
+        let Some(bookmark) = bookmarks.get(name) else {
+            return Ok(None);
+        };
+        let bookmark_url = Url::parse(bookmark).map_err(|_| Error::BookmarkFormatError)?;
+        let url_segments = bookmark_url
+            .path_segments()
+            .map(|s| s.collect::<Vec<_>>())
+            .ok_or(Error::BookmarkFormatError)?;
+        match url_segments[..] {
+            ["checklists", list_idstr] => {
+                let list_id: u32 = list_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
+                Ok(Some(Bookmark {
+                    list_id,
+                    parent_task_id: None,
+                }))
             }
-        } else {
-            Ok(None)
+            ["checklists", list_idstr, "tasks", task_idstr] => {
+                let list_id: u32 = list_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
+                let parent_task_id: u32 =
+                    task_idstr.parse().map_err(|_| Error::BookmarkFormatError)?;
+                Ok(Some(Bookmark {
+                    list_id,
+                    parent_task_id: Some(parent_task_id),
+                }))
+            }
+            _ => Err(anyhow!(Error::BookmarkFormatError)),
         }
     }
 }
