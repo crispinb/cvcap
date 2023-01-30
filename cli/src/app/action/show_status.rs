@@ -9,9 +9,9 @@ pub struct ShowStatus;
 
 impl Action for ShowStatus {
     fn run(self, context: context::Context) -> Result<RunType> {
-        println!("{}", self.get_status(context));
+        let msg = format!("{}", self.get_status(context));
 
-        Ok(RunType::Completed)
+        Ok(RunType::Completed(msg))
     }
 }
 
@@ -30,16 +30,17 @@ impl ShowStatus {
         status_text.push('\n');
         status_text.push_str("    - default list: \t\t");
         match &context.config {
-            Some(config) => {
+            Ok(config) => {
                 status_text.push_str(&config.list_name);
                 status_text.push('\n');
                 match &config.bookmarks {
-                    Some(bookmarks) => status_text
-                        .push_str(&format!("    - bookmarks \t\t✅ {:?}", bookmarks.keys())),
-                    None => status_text.push_str("    - bookmarks: \t\t ❌"),
+                    Some(bookmarks) => {
+                        status_text.push_str(&format!("    - bookmarks \t\t✅ {:?}", bookmarks))
+                    }
+                    None => status_text.push_str("    - bookmarks: \t\t❌"),
                 };
             }
-            None => {
+            Err(_) => {
                 status_text.push('❌');
                 status_text.push_str("\n    - bookmarks:\t\t❌");
             }

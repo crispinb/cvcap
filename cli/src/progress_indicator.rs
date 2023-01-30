@@ -23,9 +23,9 @@ impl ProgressIndicator<'_> {
         }
     }
 
-    pub fn run<F>(mut self, job: F) -> Result<()>
+    pub fn run<F, T>(mut self, job: F) -> Result<T>
     where
-        F: FnOnce() -> Result<()>,
+        F: FnOnce() -> Result<T>,
     {
         (self.do_before)();
 

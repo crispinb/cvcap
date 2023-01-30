@@ -1,15 +1,17 @@
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use assert_cmd::Command;
+use copypasta::{ClipboardContext, ClipboardProvider};
 use predicates::prelude::*;
+use serial_test::serial;
 use temp_dir::TempDir;
 use uuid::Uuid;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{method, path, path_regex};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use cvapi::Task;
+use cvapi::{Checklist, CheckvistLocation, Task};
 use cvcap::{
+    bookmark::Bookmark,
     config::Config,
     context::{self, CUSTOM_CONFIG_FILE_PATH_ENV_KEY, CUSTOM_SERVICE_URL_KEY},
     creds,
@@ -19,11 +21,14 @@ use cvcap::{
 /// given the specified args. Underlying functionality is in unit & lib tests
 /// NOTE: cvcap isolation from the user's environment is controlled only by env vars.
 ///       The appropriate ones must be set, or we risk overwriting the users's config file!
-/// NB: Some of the more interactive features (eg `-l`) aren't tested at all
+/// Some of the more interactive features (eg `-l`) aren't tested at all
+/// ## Untested interactive features
+/// * add-bookmark:
+///     * y/n prompt if bookmark already exists
 
 #[tokio::test]
 async fn run_without_args_shows_help() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, false, true).await;
+    let (mut cmd, _test_config) = configure_command(None, false, true).await;
     cmd.assert()
         .stderr(predicate::str::contains("USAGE:"))
         .failure();
@@ -31,17 +36,16 @@ async fn run_without_args_shows_help() {
 
 #[tokio::test]
 async fn adds_task_without_subcommand() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, true, true).await;
-    cmd.arg("status")
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
+    cmd.arg("test task")
         .assert()
-        .stdout(predicate::str::contains("Test List").count(1))
-        .stdout(predicate::str::contains("✅"))
+        .stdout(predicate::str::contains("test task").count(1))
         .success();
 }
 
 #[tokio::test]
 async fn status_reports_default_list_not_configured() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, false, true).await;
+    let (mut cmd, _test_config) = configure_command(None, false, true).await;
     cmd.arg("status")
         .env(
             context::CUSTOM_CONFIG_FILE_PATH_ENV_KEY,
@@ -58,7 +62,7 @@ async fn status_reports_default_list_not_configured() {
 
 #[tokio::test]
 async fn status_reports_user_not_logged_in() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, true, false).await;
+    let (mut cmd, _test_config) = configure_command(None, true, false).await;
 
     cmd.arg("status")
         .assert()
@@ -71,7 +75,7 @@ async fn status_reports_user_not_logged_in() {
 }
 #[tokio::test]
 async fn status_reports_presence_of_bookmarks() {
-    let (mut cmd, _testconfig) = configure_command(HttpResponse::Ok, true, true).await;
+    let (mut cmd, _testconfig) = configure_command(None, true, true).await;
 
     cmd.arg("status")
         .assert()
@@ -79,9 +83,10 @@ async fn status_reports_presence_of_bookmarks() {
         .success();
 }
 
+// FIX: see https://github.com/crispinb/cvcap/issues/29
 #[tokio::test]
 async fn logout_subcommand_when_not_logged_in_succeeds_with_message() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, true, false).await;
+    let (mut cmd, _test_config) = configure_command(None, true, false).await;
 
     cmd.arg("logout")
         .assert()
@@ -91,10 +96,10 @@ async fn logout_subcommand_when_not_logged_in_succeeds_with_message() {
 
 #[tokio::test]
 async fn shows_must_login_message_when_token_refresh_fails() {
-    let (mut cmd, test_config) = configure_command(HttpResponse::Unauthorised, true, true).await;
+    let (mut cmd, test_config) =
+        configure_command(Some(HttpResponse::Unauthorised), true, true).await;
 
     cmd.arg("task to add")
-        .arg("-v")
         .assert()
         .stderr(predicate::str::contains(
             "You have been logged out of the Checkvist API",
@@ -109,7 +114,7 @@ async fn shows_must_login_message_when_token_refresh_fails() {
 
 #[tokio::test]
 async fn add_task_from_stdin() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, true, true).await;
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
 
     cmd.arg("add")
         .arg("-s")
@@ -122,7 +127,7 @@ async fn add_task_from_stdin() {
 
 #[tokio::test]
 async fn add_task_with_list_bookmark() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, true, true).await;
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
     cmd.arg("add")
         .arg("task_with_list_bookmark")
         .arg("-b")
@@ -136,7 +141,7 @@ async fn add_task_with_list_bookmark() {
 
 #[tokio::test]
 async fn add_task_with_task_bookmark() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, true, true).await;
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
     cmd.arg("add")
         .arg("task_with_task_bookmark")
         .arg("-b")
@@ -150,11 +155,141 @@ async fn add_task_with_task_bookmark() {
 
 #[tokio::test]
 async fn logout_subcommand_deletes_token() {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, true, true).await;
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
     cmd.arg("logout")
         .assert()
         .stdout(predicate::str::contains("logged out"))
         .success();
+}
+
+// NB: all tests using the ClipboardContext must be `#[serial]`
+#[tokio::test]
+#[serial]
+async fn add_bookmark() {
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
+    let cliptext = "https://checkvist.com/checklists/3";
+    let mut clip_ctx = ClipboardContext::new().unwrap();
+    clip_ctx.set_contents(cliptext.into()).unwrap();
+
+    cmd.arg("add-bookmark")
+        .arg("bookmark_name1234")
+        .assert()
+        .stdout(predicate::str::contains("Bookmark Added").count(1))
+        .success();
+}
+
+#[tokio::test]
+#[serial]
+async fn add_bookmark_with_invalid_list_id_fails() {
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
+    let list_id = 10;
+    let cliptext = format!("https://checkvist.com/checklists/{}", list_id);
+    let mut clip_ctx = ClipboardContext::new().unwrap();
+    clip_ctx.set_contents(cliptext.into()).unwrap();
+
+    cmd.arg("add-bookmark")
+        .arg("test_bookmark")
+        .assert()
+        .failure();
+}
+
+#[tokio::test]
+#[serial]
+async fn add_bookmark_with_invalid_parent_task_id_fails() {
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
+    let list_id = 8;
+    let parent_task_id = 10;
+    let cliptext = format!(
+        "https://checkvist.com/checklists/{}/tasks/{}.json",
+        list_id, parent_task_id
+    );
+    let mut clip_ctx = ClipboardContext::new().unwrap();
+    clip_ctx.set_contents(cliptext.into()).unwrap();
+
+    cmd.arg("add-bookmark")
+        .arg("test_bookmark")
+        .assert()
+        .failure();
+}
+
+#[tokio::test]
+#[serial]
+async fn add_bookmark_with_q_succeeds_silently() {
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
+    let cliptext = "https://checkvist.com/checklists/3";
+    let mut clip_ctx = ClipboardContext::new().unwrap();
+    clip_ctx.set_contents(cliptext.into()).unwrap();
+
+    cmd.arg("add-bookmark")
+        .arg("-q")
+        .arg("bookmark_name1234")
+        .assert()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty())
+        .success();
+}
+
+#[tokio::test]
+#[serial]
+async fn add_bookmark_no_config_q_fails_silently() {
+    let (mut cmd, _test_config) = configure_command(None, false, true).await;
+
+    cmd.arg("add-bookmark")
+        .arg("-q")
+        .arg("bookmark")
+        .assert()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty())
+        .failure();
+}
+
+#[tokio::test]
+#[serial]
+async fn add_bookmark_logged_out_q_fails_silently() {
+    let (mut cmd, _test_config) = configure_command(None, true, false).await;
+
+    cmd.arg("add-bookmark")
+        .arg("-q")
+        .arg("bookmark")
+        .assert()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty())
+        .failure();
+}
+
+#[tokio::test]
+#[serial]
+async fn add_bookmark_with_invalid_list_id_q_fails_silently() {
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
+    let list_id = 10;
+    let cliptext = format!("https://checkvist.com/checklists/{}", list_id);
+    let mut clip_ctx = ClipboardContext::new().unwrap();
+    clip_ctx.set_contents(cliptext.into()).unwrap();
+
+    cmd.arg("add-bookmark")
+        .arg("test_bookmark")
+        .arg("-q")
+        .assert()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty())
+        .failure();
+}
+
+#[tokio::test]
+#[serial]
+async fn add_duplicate_bookmark_q_fails_silently() {
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
+    // dupes the bookmark set in configure_command
+    let cliptext = "https://checkvist.com/checklists/1";
+    let mut clip_ctx = ClipboardContext::new().unwrap();
+    clip_ctx.set_contents(cliptext.into()).unwrap();
+
+    cmd.arg("add-bookmark")
+        .arg("bm1")
+        .arg("-q")
+        .assert()
+        .stderr(predicate::str::is_empty())
+        .failure();
 }
 
 #[tokio::test]
@@ -168,7 +303,7 @@ async fn s_and_c_flags_conflict() {
 }
 
 async fn args_should_conflict(args: Vec<&str>) {
-    let (mut cmd, _test_config) = configure_command(HttpResponse::Ok, false, false).await;
+    let (mut cmd, _test_config) = configure_command(None, false, false).await;
     cmd.args(args).assert().failure();
 }
 
@@ -191,6 +326,7 @@ struct TestConfig {
     mock_server: MockServer,
     logged_in: bool,
     pub keychain_service_name: String,
+    config_path: PathBuf,
 }
 
 // clear up test resources
@@ -208,12 +344,27 @@ impl std::ops::Drop for TestConfig {
 }
 
 enum HttpResponse {
-    Ok,
     Unauthorised,
 }
 
+/// Creates these test resources:
+/// - configuration env vars for service url, path to config file (if config_file is true),
+///   and OS-specific  keychain service name (for api token storage).
+/// - config file if 'config_file_exists', with:
+///     - 1 each list and task bookmark with list/parent_task_id 1
+/// - mock server responding thusly:
+///      Auth successs/failure is determined by `response`.
+///      Then success/failure for specific responses is determined by the list/task_id
+///      args sent to CheckvistClient methods.
+///     Successes:
+///      - GET request for list ids 1-9
+///      - GET request for tasks from list 1-9
+///      Failures:
+///      - GET request 403 invalid list for any other list
+///      - GET request 403 invalid parent task id for any other task
+///      - POST to add a task. Returns response & payload from args
 async fn configure_command(
-    response: HttpResponse,
+    response: Option<HttpResponse>,
     config_file_exists: bool,
     logged_in: bool,
 ) -> (Command, TestConfig) {
@@ -221,7 +372,7 @@ async fn configure_command(
     let config_path = if config_file_exists {
         let config_path = temp_dir.child("temp.toml");
         let config = config();
-        config.write_to_new_file(&config_path).unwrap();
+        config.save(&config_path).unwrap();
         config_path
     } else {
         PathBuf::from("nonexistent_file")
@@ -234,12 +385,11 @@ async fn configure_command(
         "cvcap-cli_integration_tests-nonexistent-keyring-service-name".into()
     };
 
-    let task = task();
-    let mock_server = mock_server(response, &task).await;
+    let mock_server = mock_server(response).await;
 
     let mut cmd = Command::cargo_bin("cvcap").unwrap();
     cmd.env(CUSTOM_SERVICE_URL_KEY, &mock_server.uri())
-        .env(CUSTOM_CONFIG_FILE_PATH_ENV_KEY, config_path)
+        .env(CUSTOM_CONFIG_FILE_PATH_ENV_KEY, &config_path)
         .env(context::CUSTOM_SERVICE_NAME_ENV_KEY, &keychain_service_name);
 
     (
@@ -249,26 +399,74 @@ async fn configure_command(
             mock_server,
             logged_in,
             keychain_service_name,
+            config_path,
         },
     )
 }
 
-async fn mock_server(response: HttpResponse, task: &Task) -> MockServer {
+// TODO: do we need the task?
+async fn mock_server(response: Option<HttpResponse>) -> MockServer {
     // create a mock server
     let mock_server = MockServer::start().await;
 
-    let response = match response {
-        HttpResponse::Ok => ResponseTemplate::new(200).set_body_json(task),
-        HttpResponse::Unauthorised => ResponseTemplate::new(401),
+    // response to use when neither the caller has specified one,
+    // nor is there a unique one added in the mocks
+    let default_response = match response {
+        None => ResponseTemplate::new(200),
+        Some(HttpResponse::Unauthorised) => ResponseTemplate::new(401),
     };
 
+    let list = list();
+    let task = task();
+    let tasks = vec![&task];
+
+    // wiremock docs don't make clear how matchers interact
+    // It seems exact path matches beat regexes, and that
+    // order only matters for an exact clash (first wins)
+    Mock::given(method("GET"))
+        // TODO: make the returned list responsive to a captured list id
+        .and(path_regex(r#"/checklists/[1-9].json"#))
+        .respond_with(default_response.clone().set_body_json(list))
+        .mount(&mock_server)
+        .await;
+
+    let err_msg = r#"{"message":"The list doesn't exist or is not available to you"}"#;
+    Mock::given(method("GET"))
+        .and(path_regex(r#"/checklists/\d+\.json"#))
+        .respond_with(ResponseTemplate::new(403).set_body_string(err_msg))
+        .mount(&mock_server)
+        .await;
+
     Mock::given(method("POST"))
-        .and(path("/checklists/1/tasks.json"))
-        .respond_with(response)
+        .and(path_regex("/checklists/[1-9]/tasks.json"))
+        .respond_with(default_response.clone().set_body_json(&task))
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/checklists/[1-9]/tasks.json"))
+        .respond_with(default_response.clone().set_body_json(&tasks))
+        .mount(&mock_server)
+        .await;
+
+    // does the err parent id really matter for testing here?
+    let task_err_msg = r#"{"message":"Invalid parent_id: 7"}"#;
+    Mock::given(method("GET"))
+        .and(path_regex(r#"/checklists/\d+/tasks/\d+\.json"#))
+        .respond_with(ResponseTemplate::new(400).set_body_string(task_err_msg))
         .mount(&mock_server)
         .await;
 
     mock_server
+}
+
+fn list() -> Checklist {
+    Checklist {
+        id: 1,
+        name: "Test List".into(),
+        updated_at: "".into(),
+        task_count: 1,
+    }
 }
 
 fn task() -> Task {
@@ -281,19 +479,27 @@ fn task() -> Task {
 }
 
 fn config() -> Config {
+    let list_location = CheckvistLocation {
+        list_id: 1,
+        parent_task_id: None,
+    };
+    let task_location = CheckvistLocation {
+        list_id: 1,
+        parent_task_id: Some(1),
+    };
     Config {
         list_id: 1,
         list_name: "Test List".into(),
-        bookmarks: Some(HashMap::from([
-            (
-                "list1_bookmark".into(),
-                "https://beta.checkvist.com/checklists/1".into(),
-            ),
-            (
-                "task1_bookmark".into(),
-                "https://beta.checkvist.com/checklists/1/tasks/1".into(),
-            ),
-        ])),
+        bookmarks: Some(vec![
+            Bookmark {
+                name: "list1_bookmark".into(),
+                location: list_location,
+            },
+            Bookmark {
+                name: "task1_bookmark".into(),
+                location: task_location,
+            },
+        ]),
     }
 }
 

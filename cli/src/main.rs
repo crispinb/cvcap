@@ -5,7 +5,7 @@ use log::{error, info};
 
 use cvapi::CheckvistError;
 use cvcap::colour_output::{ColourOutput, StreamKind, Style};
-use cvcap::{context::Context, creds, Action, Cli, Command, Error as AppError, RunType};
+use cvcap::{creds, Action, Cli, Command, Error as AppError, RunType};
 
 // Logging.
 // Convention: reserve trace and debug levels for libraries (eg. checkvist api)
@@ -21,29 +21,50 @@ use cvcap::{context::Context, creds, Action, Cli, Command, Error as AppError, Ru
 
 fn main() {
     let cli = Cli::parse();
-    let context = match Context::new(!cli.quiet) {
+    // if no subcommand is provided, create a default 'add', with task content from first arg
+    let subcommand = cli
+        .subcommand
+        .unwrap_or_else(|| Command::default(&cli.task.expect("Arguments error")));
+    let context = match subcommand.new_context(!cli.quiet) {
         Ok(context) => context,
         Err(e) => std::process::exit(handle_error(e, cli.quiet, "")),
     };
+
     let log_level = if cli.verbose { "DEBUG" } else { "OFF" };
     env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
 
-    // if no subcommand is provided, create a default 'add', with task content from first arg
-    match cli
-        .subcommand
-        .unwrap_or_else(|| Command::default(&cli.task.expect("Arguments error")))
-        .run(context.clone())
-    {
+    match subcommand.run(context.clone()) {
         Err(err) => {
             error!("Fatal error. Cause: {:?}", err.root_cause());
             std::process::exit(handle_error(err, cli.quiet, &context.keychain_service_name));
         }
-        Ok(RunType::Completed) => (),
-        Ok(RunType::Cancelled) => println!("Cancelled"),
+        Ok(RunType::Completed(msg)) => {
+            if !cli.quiet {
+                println!("{}", msg)
+            }
+        }
+        Ok(RunType::Cancelled) => {
+            if !cli.quiet {
+                println!("Cancelled")
+            }
+        }
     }
     std::process::exit(0);
 }
 
+// TODO: think again here - the only 'special' handling most of these need is the message, which
+// should come from the source.
+// But we still want to distinguish 3 types of errors:
+// - ones that do need special handlng  (eg token refresh failed)
+// - anticipated errs where we just tell the user what happened (most of our app errors)
+//   --> this is what this note targets: these just need a message which is better handled
+//       at source (locality)
+//       But it might be nicer to stick with anyhow if there's still a way to distinguish
+//       the unexpected type. Does anyhow! have a way to tag error types in some way?
+//       see add_bookmark:: gather_user_responses for why - nesting err + anyhow + app error types
+//       is unweildy!
+// - unexpectedd errors, usually from lower in the stack
+//   These we log and suggest to the user they report
 fn handle_error(err: Error, is_quiet: bool, keychain_service_name: &str) -> i32 {
     // CheckVistError
     // Hacky: downcast the concrete error types
@@ -59,12 +80,15 @@ fn handle_error(err: Error, is_quiet: bool, keychain_service_name: &str) -> i32 
         }
         // app errors are wrapped in Anyhow::Error
         _possible_app_error => match err.root_cause().downcast_ref::<AppError>() {
+            // TODO:consolidate all these expected-but-no-special-action errors to be handled by 1
+            // function. The actual messages should be specified at the error site, not here.
+            // OR in the error::write implementation. But not here
             Some(AppError::MissingPipe) => eprint_nopipe_error(is_quiet),
-            Some(AppError::BookmarkMissingError(bookmark)) => {
+            Some(AppError::BookmarkMissing(bookmark)) => {
                 eprint_bookmark_missing_error(bookmark, is_quiet)
             }
-            Some(AppError::BookmarkFormatError) => eprint_error(
-                "There is an error in the formatting of your bookmark",
+            Some(AppError::InvalidBookmarkStringFormat) => eprint_error(
+                "Your clipboard doesn't seem to contain a valid bookmark",
                 is_quiet,
             ),
             Some(AppError::InvalidConfigFile(path)) => eprint_error(
@@ -87,7 +111,7 @@ fn eprint_error(message: &str, is_quiet: bool) {
     };
 
     let out = ColourOutput::new(StreamKind::Stderr);
-    out.append(format!("\nError: "), Style::Error)
+    out.append("\nError: ", Style::Error)
         .append(message, Style::Normal)
         .println()
         .expect("problem styling error text");
@@ -124,7 +148,7 @@ fn eprint_bookmark_missing_error(bookmark: &str, is_quiet: bool) {
     };
     let msg = format!("You tried to add an item using bookmark '{}', but that bookmark is not in your cvcap config file", bookmark);
     let out = ColourOutput::new(StreamKind::Stderr);
-    out.append(format!("\nError: "), Style::Error)
+    out.append("\nError: ", Style::Error)
         .append(msg, Style::Normal)
         .println()
         .expect("problem styling error text");

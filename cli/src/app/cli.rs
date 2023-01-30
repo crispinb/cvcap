@@ -40,6 +40,9 @@ pub enum Command {
     /// Removes all login data for the logged in user
     #[clap(name = "logout")]
     LogOut(action::LogOut),
+    /// Adds a Checkvist bookmark from the clipboard
+    #[clap(name = "add-bookmark")]
+    AddBookmark(action::AddBookmark),
 }
 
 impl Command {
@@ -47,6 +50,16 @@ impl Command {
     // Can't  use std::default as we need the arg
     pub fn default(task_content: &str) -> Self {
         Self::Add(action::Add::new(task_content))
+    }
+
+    /// Allow subcommands to tailor the context
+    pub fn new_context(&self, allow_interaction: bool) -> Result<Context> {
+        match self {
+            Command::Add(_) => Context::new(allow_interaction),
+            Command::ShowStatus(_) => Context::new(false),
+            Command::LogOut(_) => Context::new(false),
+            Command::AddBookmark(_) => Context::new(allow_interaction),
+        }
     }
 }
 
@@ -56,6 +69,7 @@ impl action::Action for Command {
             Command::Add(add) => add.run(context),
             Command::ShowStatus(cmd) => cmd.run(context),
             Command::LogOut(cmd) => cmd.run(context),
+            Command::AddBookmark(cmd) => cmd.run(context),
         }
     }
 }

@@ -16,6 +16,13 @@ pub struct Checklist {
     pub task_count: u16,
 }
 
+/// Generic location of an item in a Checkvist list.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
+pub struct CheckvistLocation {
+    pub list_id: u32,
+    pub parent_task_id: Option<u32>,
+}
+
 #[derive(PartialEq, Eq, Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -30,6 +37,8 @@ struct ApiToken {
     token: String,
 }
 
+type Result<T> = std::result::Result<T, CheckvistError>;
+
 // TODO: check all the variant sizes - clippy complains this is too large
 //https://rust-lang.github.io/rust-clippy/master/index.html#result_large_err
 // clippy ` cargo clippy --workspace -- -A "clippy::result_large_err"` for now
@@ -37,6 +46,7 @@ struct ApiToken {
 pub enum CheckvistError {
     InvalidParentIdError,
     InvalidListError,
+    InvalidTaskError,
     UnknownError { message: String },
     NetworkError(ureq::Error),
     // used by serde_json for decoding errors
@@ -50,6 +60,7 @@ impl fmt::Display for CheckvistError {
             Self::IoError(ref err) => write!(f, "{:?}", err),
             Self::NetworkError(ref err) => write!(f, "{:?}", err),
             Self::InvalidListError => write!(f, "You tried to add a task to a list that can't be found, or you don't have permission to access"),
+            Self::InvalidTaskError => write!(f, "You tried to add a task to a parent task that can't be found, or you don't have permission to access"),
             Self::InvalidParentIdError => write!(f, "You  tried to add a task to a parent task that can't be found"),
             Self::UnknownError { ref message } => write!(f, "{}", message),
             Self::TokenRefreshFailedError => write!(f, "Could not refresh token"),
@@ -119,7 +130,17 @@ enum ApiResponse<T> {
 pub struct CheckvistClient {
     base_url: Url,
     api_token: RefCell<String>,
+    // should we need multiple callbacks, replace this with a vec of trait objects
     token_refresh_callback: Box<dyn Fn(&str)>,
+}
+
+impl fmt::Debug for CheckvistClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CheckvistClient")
+            .field("base_url", &self.base_url)
+            .field("api_token", &self.api_token)
+            .finish_non_exhaustive()
+    }
 }
 
 impl CheckvistClient {
@@ -131,13 +152,9 @@ impl CheckvistClient {
         }
     }
 
-    pub fn get_token(
-        base_url: String,
-        username: String,
-        remote_key: String,
-    ) -> Result<String, CheckvistError> {
+    pub fn get_token(base_url: &str, username: &str, remote_key: &str) -> Result<String> {
         let url = CheckvistClient::build_endpoint(
-            &Url::parse(&base_url).expect("Bad base URL supplied"),
+            &Url::parse(base_url).expect("Bad base URL supplied"),
             vec!["/auth/login.json?version=2"],
         );
 
@@ -148,7 +165,7 @@ impl CheckvistClient {
         Ok(response.token)
     }
 
-    pub fn refresh_token(&self) -> Result<(), CheckvistError> {
+    pub fn refresh_token(&self) -> Result<()> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/auth/refresh_token.json?version=2"],
@@ -168,7 +185,35 @@ impl CheckvistClient {
         Ok(())
     }
 
-    pub fn get_lists(&self) -> Result<Vec<Checklist>, CheckvistError> {
+    /// Checks whether or not the location exists
+    /// Returns Ok(true) if so, Ok(false) if not
+    /// Any Err value indicates something unexpected (network, auth,etc)
+    pub fn is_location_valid(&self, location: &CheckvistLocation) -> Result<bool> {
+        match location.parent_task_id {
+            None => match self.get_list(location.list_id) {
+                Ok(_) => Ok(true),
+                Err(e) => {
+                    if let CheckvistError::InvalidListError = e {
+                        Ok(false)
+                    } else {
+                        Err(e)
+                    }
+                }
+            },
+            Some(parent_task_id) => match self.get_task(location.list_id, parent_task_id) {
+                Ok(_) => Ok(true),
+                Err(e) => {
+                    if let CheckvistError::InvalidTaskError = e {
+                        Ok(false)
+                    } else {
+                        Err(e)
+                    }
+                }
+            },
+        }
+    }
+
+    pub fn get_lists(&self) -> Result<Vec<Checklist>> {
         let url = CheckvistClient::build_endpoint(&self.base_url, vec!["/checklists.json"]);
 
         let response = self.checkvist_get(url)?.into_json()?;
@@ -176,7 +221,7 @@ impl CheckvistClient {
         self.to_results(response)
     }
 
-    pub fn get_list(&self, list_id: u32) -> Result<Checklist, CheckvistError> {
+    pub fn get_list(&self, list_id: u32) -> Result<Checklist> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/checklists/", &list_id.to_string(), ".json"],
@@ -187,7 +232,7 @@ impl CheckvistClient {
         self.to_result(response)
     }
 
-    pub fn add_list(&self, list_name: &str) -> Result<Checklist, CheckvistError> {
+    pub fn add_list(&self, list_name: &str) -> Result<Checklist> {
         let url = CheckvistClient::build_endpoint(&self.base_url, vec!["/checklists", ".json"]);
 
         let response = self
@@ -197,7 +242,25 @@ impl CheckvistClient {
         self.to_result(response)
     }
 
-    pub fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>, CheckvistError> {
+    /// Checkvist returns the task with its parents (if any)
+    pub fn get_task(&self, list_id: u32, task_id: u32) -> Result<Vec<Task>> {
+        let url = CheckvistClient::build_endpoint(
+            &self.base_url,
+            vec![
+                "/checklists/",
+                &list_id.to_string(),
+                "/tasks/",
+                &task_id.to_string(),
+                ".json",
+            ],
+        );
+
+        let response = self.checkvist_get(url)?.into_json()?;
+
+        self.to_results(response)
+    }
+
+    pub fn get_tasks(&self, list_id: u32) -> Result<Vec<Task>> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
@@ -208,7 +271,7 @@ impl CheckvistClient {
         self.to_results(response)
     }
 
-    pub fn add_task(&self, list_id: u32, task: &Task) -> Result<Task, CheckvistError> {
+    pub fn add_task(&self, list_id: u32, task: &Task) -> Result<Task> {
         let url = CheckvistClient::build_endpoint(
             &self.base_url,
             vec!["/checklists/", &list_id.to_string(), "/tasks.json"],
@@ -221,11 +284,7 @@ impl CheckvistClient {
     }
 
     // TODO: - REFACTOR: combine get & post methods
-    fn checkvist_post<T: serde::Serialize>(
-        &self,
-        url: Url,
-        payload: T,
-    ) -> Result<ureq::Response, CheckvistError> {
+    fn checkvist_post<T: serde::Serialize>(&self, url: Url, payload: T) -> Result<ureq::Response> {
         let request =
             ureq::post(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
         let response = request.send_json(&payload).or_else(|err| {
@@ -253,7 +312,7 @@ impl CheckvistClient {
     }
 
     // TODO: - REFACTOR: combine get & post methods
-    fn checkvist_get(&self, url: Url) -> Result<ureq::Response, CheckvistError> {
+    fn checkvist_get(&self, url: Url) -> Result<ureq::Response> {
         let request =
             ureq::get(url.as_str()).set("X-Client-token", &self.api_token.borrow().clone());
         let response = request.call().or_else(|err| {
@@ -286,7 +345,7 @@ impl CheckvistClient {
     //        how to merge with to_result?
     // check JSON implementation in Programming Rust, p.234 (Enums ch).
     // For arrays it nests vecs of itself (aot APIResponse which has Vec<T>)
-    fn to_results<T>(&self, response: ApiResponse<T>) -> Result<Vec<T>, CheckvistError> {
+    fn to_results<T>(&self, response: ApiResponse<T>) -> Result<Vec<T>> {
         match response {
             ApiResponse::OkCheckvistList(v) => Ok(v),
             ApiResponse::CheckvistApiError { message } => {
@@ -298,7 +357,7 @@ impl CheckvistClient {
         }
     }
 
-    fn to_result<T>(&self, response: ApiResponse<T>) -> Result<T, CheckvistError> {
+    fn to_result<T>(&self, response: ApiResponse<T>) -> Result<T> {
         match response {
             ApiResponse::OkCheckvistItem(returned_struct) => Ok(returned_struct),
             // as I don't know how to merge the 2 to_results, and we must deal with all responses here:

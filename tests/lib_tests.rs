@@ -33,7 +33,7 @@ async fn get_auth_token() {
         .await;
 
     let returned_token =
-        CheckvistClient::get_token(mock_server.uri(), username.into(), remote_key.into()).unwrap();
+        CheckvistClient::get_token(&mock_server.uri(), username.into(), remote_key.into()).unwrap();
 
     assert_eq!(token, returned_token);
 }
@@ -214,6 +214,29 @@ async fn add_list() {
 }
 
 #[tokio::test]
+// /checklists/checklist_id/tasks/task_id.(json|xml)
+async fn get_task() {
+    let tasks = vec![Task {
+        id: Some(1),
+        position: 1,
+        content: "content".to_string(),
+        parent_id: None,
+    }];
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/checklists/1/tasks/1.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!(tasks)))
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
+    let returned_tasks = client.get_task(1, 1).unwrap();
+
+    assert_eq!(tasks, returned_tasks);
+}
+
+#[tokio::test]
 async fn get_tasks() {
     let tasks = vec![Task {
         id: Some(1),
@@ -233,6 +256,45 @@ async fn get_tasks() {
     let returned_tasks = client.get_tasks(1).unwrap();
 
     assert_eq!(tasks, returned_tasks);
+}
+
+#[tokio::test]
+async fn check_locations() {
+    let list = Checklist {
+        id: 1,
+        name: "list1".to_string(),
+        updated_at: "a date".to_string(),
+        task_count: 1,
+    };
+    let mock_server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/checklists/1.json"))
+        .and(header("X-Client-Token", "token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!(list)))
+        .mount(&mock_server)
+        .await;
+    let err_msg = r#"{"message":"The list doesn't exist or is not available to you"}"#;
+    Mock::given(method("GET"))
+        .and(path("/checklists/2.json"))
+        .and(header("X-Client-Token", "token"))
+        .respond_with(ResponseTemplate::new(403).set_body_string(err_msg))
+        .mount(&mock_server)
+        .await;
+
+    let client = CheckvistClient::new(&mock_server.uri(), "token".into(), Box::new(|_token| ()));
+    let present_location = cvapi::CheckvistLocation {
+        list_id: 1,
+        parent_task_id: None,
+    };
+    let missing_location = cvapi::CheckvistLocation {
+        list_id: 2,
+        parent_task_id: None,
+    };
+    let present_result = client.is_location_valid(&present_location).unwrap();
+    let missing_result = client.is_location_valid(&missing_location).unwrap();
+
+    assert_eq!(true, present_result);
+    assert_eq!(false, missing_result);
 }
 
 #[tokio::test]
