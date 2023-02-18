@@ -121,9 +121,9 @@ impl AddBookmark {
 
         let job = || {
             if !client.is_location_valid(&bookmark.location)? {
-                return Err(anyhow!(
-                    "Checkvist reports that the requested bookmark location doesn't exist"
-                ));
+                return Err(anyhow!(AppError::Reportable(
+                    "Checkvist reports that the requested bookmark location doesn't exist".into()
+                )));
             };
             Ok(())
         };
