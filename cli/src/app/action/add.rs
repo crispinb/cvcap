@@ -83,7 +83,7 @@ impl Add {
         let (mut list_id, parent_id): (u32, Option<u32>) = match &self.bookmark {
             Some(bookmark_name) => match config.bookmark(bookmark_name) {
                 Some(bookmark) => (bookmark.location.list_id, bookmark.location.parent_task_id),
-                None => Err(app::Error::BookmarkMissing(bookmark_name.into()))?,
+                None => Err(app::Error::Reportable(format!("You tried to add a task to the bookmark '{}', but no bookmark of that name was found", bookmark_name)))?,
             },
             None => (config.list_id, None),
         };
@@ -150,7 +150,9 @@ impl Add {
 
     fn get_content_from_stdin(&self) -> Result<Option<String>> {
         if !is_content_piped() {
-            return Err(anyhow!(app::Error::MissingPipe));
+            return Err(anyhow!(app::Error::Reportable(
+                "Tried to read from stdin pipe, but nothing was piped".into()
+            )));
         }
         let mut buffer = String::new();
 

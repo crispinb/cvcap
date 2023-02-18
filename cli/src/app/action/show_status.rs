@@ -9,9 +9,7 @@ pub struct ShowStatus;
 
 impl Action for ShowStatus {
     fn run(self, context: context::Context) -> Result<RunType> {
-        let msg = format!("{}", self.get_status(context));
-
-        Ok(RunType::Completed(msg))
+        Ok(RunType::Completed(self.get_status(context)))
     }
 }
 

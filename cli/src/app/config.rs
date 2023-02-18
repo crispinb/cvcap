@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 
 use super::{bookmark::Bookmark, Error};
@@ -22,10 +22,12 @@ impl Config {
             return Ok(None);
         }
         let config_file = fs::read_to_string(path)?;
-        let config = Some(
-            toml::from_str(&config_file)
-                .map_err(|_e| Error::InvalidConfigFile(path.to_string_lossy().into()))?,
-        );
+        let config = Some(toml::from_str(&config_file).with_context(|| {
+            Error::Reportable(format!(
+                "The cvcap config file \"{}\" is invalid and cannot be read",
+                path.to_string_lossy()
+            ))
+        })?);
         Ok(config)
     }
 

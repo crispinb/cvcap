@@ -1,6 +1,6 @@
 //! Adds a bookmark, honouring -q by returning errors where interactions are required.
 // NB: I'd like to find a better/more-principled means of handling interactions/-q
-use anyhow::{anyhow, Result as AnyhowResult};
+use anyhow::{anyhow, Context as AnyhowContext, Result as AnyhowResult};
 use clap::Args;
 use cvapi::CheckvistError;
 use dialoguer::Confirm;
@@ -9,7 +9,10 @@ use super::{
     context::{self, Context},
     Action, RunType,
 };
-use crate::{app::bookmark::Bookmark, progress_indicator::ProgressIndicator};
+use crate::{
+    app::{bookmark::Bookmark, Error as AppError},
+    progress_indicator::ProgressIndicator,
+};
 
 #[derive(Debug, Args)]
 pub struct AddBookmark {
@@ -23,6 +26,11 @@ pub struct AddBookmark {
 
 type Result<T> = std::result::Result<T, AddBookmarkError>;
 
+// This isn't strictly an error type - eg. UserCancellation isn't
+// an error, so is converted to Result<Runtype> before return in
+// ::run. Using it here to keep nesting to a minimum (ie. using `?`).
+// I suppose we can consider them errors in each function's context,
+// even if they are not from the global module pov.
 enum AddBookmarkError {
     UserCancellation,
     Unhandled(anyhow::Error),
@@ -62,9 +70,12 @@ impl Action for AddBookmark {
                 let allow_interaction = context.allow_interaction;
                 let job = || response.add_bookmark(context);
                 if allow_interaction {
-                let p =
-                    ProgressIndicator::new('.', Box::new(|| println!("\nAdding bookmark")), 200);
-                p.run(job)
+                    let p = ProgressIndicator::new(
+                        '.',
+                        Box::new(|| println!("\nAdding bookmark")),
+                        200,
+                    );
+                    p.run(job)
                 } else {
                     job()
                 }
@@ -81,7 +92,9 @@ impl AddBookmark {
     /// would be needed for the add to proceed.
     fn gather_user_responses(mut self, context: &Context) -> Result<AddBookmark> {
         let config = context.config.clone()?;
-        let bookmark = Bookmark::from_clipboard(&self.name)?;
+        let bookmark = Bookmark::from_clipboard(&self.name).with_context(|| {
+            AppError::Reportable("The clipboard doesn't contain a valid bookmark".into())
+        })?;
         // oh thank you I love you so much `Cargo fmt`
         let (bookmark_exists, replace_msg) = if config.find_bookmark_by_name(&self.name).is_some() {
             (
@@ -115,12 +128,12 @@ impl AddBookmark {
             Ok(())
         };
         if context.allow_interaction {
-        let p = ProgressIndicator::new(
-            '.',
-            Box::new(|| println!("\nChecking bookmark location is valid")),
-            200,
-        );
-        p.run(job)?;
+            let p = ProgressIndicator::new(
+                '.',
+                Box::new(|| println!("\nChecking bookmark location is valid")),
+                200,
+            );
+            p.run(job)?;
         } else {
             job()?;
         }

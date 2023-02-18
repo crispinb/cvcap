@@ -404,7 +404,6 @@ async fn configure_command(
     )
 }
 
-// TODO: do we need the task?
 async fn mock_server(response: Option<HttpResponse>) -> MockServer {
     // create a mock server
     let mock_server = MockServer::start().await;
@@ -424,7 +423,6 @@ async fn mock_server(response: Option<HttpResponse>) -> MockServer {
     // It seems exact path matches beat regexes, and that
     // order only matters for an exact clash (first wins)
     Mock::given(method("GET"))
-        // TODO: make the returned list responsive to a captured list id
         .and(path_regex(r#"/checklists/[1-9].json"#))
         .respond_with(default_response.clone().set_body_json(list))
         .mount(&mock_server)

@@ -98,7 +98,7 @@ impl Context {
                     api_token.clone(),
                 )?;
                 Self::prompt_user_to_set_up_new_config(&checkvist_client, &config_file_path)?
-                    .ok_or_else(|| ConfigAbsentError::UserCancellation)
+                    .ok_or(ConfigAbsentError::UserCancellation)
             }
             (None, false) => Err(ConfigAbsentError::InteractionDisallowed),
         };

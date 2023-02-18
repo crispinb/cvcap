@@ -1,10 +1,9 @@
 use std::fmt::Debug;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-use super::Error;
 use crate::clipboard;
 use cvapi::CheckvistLocation;
 
@@ -29,30 +28,32 @@ impl Bookmark {
 }
 
 impl TryFrom<&str> for Bookmark {
-    type Error = Error;
+    type Error = anyhow::Error;
 
     /// Attempt to parse a bookmark from a (presumably Checkvist) url.
     /// This encodes the list id and parent task id (if any), but not
     /// the name, so the latter is set as UNNAMED
-    fn try_from(s: &str) -> Result<Self, Error> {
-        let bookmark_url = Url::parse(s).map_err(|_| Error::InvalidBookmarkStringFormat)?;
+    fn try_from(s: &str) -> Result<Self> {
+        let bookmark_url =
+            Url::parse(s).with_context(|| format!("Couldn't parse a bookmark from '{}'", s))?;
         let url_segments = bookmark_url
             .path_segments()
             .map(|s| s.collect::<Vec<_>>())
-            .ok_or(Error::InvalidBookmarkStringFormat)?;
+            // NO! how are we distinguishing reportable from bug errors?
+            .ok_or(anyhow!("Something went wrong trying to parse a bookmark"))?;
         let (list_id_str, parent_task_id) = match url_segments[..] {
             ["checklists", list_id_str] => (list_id_str, None),
             ["checklists", list_id_str, "tasks", task_idstr] => {
                 let parent_task_id: u32 = task_idstr
                     .parse()
-                    .map_err(|_| Error::InvalidBookmarkStringFormat)?;
+                    .context(anyhow!("{} isn't a task id", task_idstr))?;
                 (list_id_str, Some(parent_task_id))
             }
-            _ => return Err(Error::InvalidBookmarkStringFormat),
+            _ => return Err(anyhow!("Unknown error")),
         };
         let list_id: u32 = list_id_str
             .parse()
-            .map_err(|_| Error::InvalidBookmarkStringFormat)?;
+            .context(anyhow!("{} isn't a list id", list_id_str))?;
 
         let location = CheckvistLocation {
             list_id,
@@ -94,40 +95,6 @@ mod test {
         let mut clip_ctx = ClipboardContext::new().unwrap();
         clip_ctx.set_contents(cliptext).unwrap();
 
-        let error = Bookmark::from_clipboard("bm1").expect_err("Expected an err");
-        let error_cause = error
-            .root_cause()
-            .downcast_ref::<crate::app::Error>()
-            .unwrap();
-
-        assert!(error.is::<crate::app::Error>());
-        assert!(std::matches!(
-            error_cause,
-            crate::app::Error::InvalidBookmarkStringFormat
-        ));
+        let _error = Bookmark::from_clipboard("bm1").expect_err("Expected an err");
     }
-
-    // #[test]
-    // fn bookmark_equality() {
-    //     let bm = Bookmark {
-    //         name: "name".into(),
-    //         list_id: 1,
-    //         parent_task_id: Some(1),
-    //     };
-    //     let copy = bm.clone();
-    //     let mut renamed = bm.clone();
-    //     renamed.name = "noname".into();
-    //     let mut relisted = bm.clone();
-    //     relisted.list_id = 2;
-    //     let mut retasked = bm.clone();
-    //     retasked.parent_task_id = Some(2);
-    //     let mut untasked = bm.clone();
-    //     untasked.parent_task_id = None;
-
-    //     assert_eq!(bm.difference(&copy), BookmarkComparison::Same);
-    //     assert_eq!(bm.difference(&renamed), BookmarkComparison::Name);
-    //     assert_eq!(bm.difference(&relisted), BookmarkComparison::List);
-    //     assert_eq!(bm.difference(&retasked), BookmarkComparison::Task);
-    //     assert_eq!(bm.difference(&untasked), BookmarkComparison::Task);
-    // }
 }

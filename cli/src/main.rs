@@ -52,19 +52,6 @@ fn main() {
     std::process::exit(0);
 }
 
-// TODO: think again here - the only 'special' handling most of these need is the message, which
-// should come from the source.
-// But we still want to distinguish 3 types of errors:
-// - ones that do need special handlng  (eg token refresh failed)
-// - anticipated errs where we just tell the user what happened (most of our app errors)
-//   --> this is what this note targets: these just need a message which is better handled
-//       at source (locality)
-//       But it might be nicer to stick with anyhow if there's still a way to distinguish
-//       the unexpected type. Does anyhow! have a way to tag error types in some way?
-//       see add_bookmark:: gather_user_responses for why - nesting err + anyhow + app error types
-//       is unweildy!
-// - unexpectedd errors, usually from lower in the stack
-//   These we log and suggest to the user they report
 fn handle_error(err: Error, is_quiet: bool, keychain_service_name: &str) -> i32 {
     // CheckVistError
     // Hacky: downcast the concrete error types
@@ -78,27 +65,11 @@ fn handle_error(err: Error, is_quiet: bool, keychain_service_name: &str) -> i32 
                 _ => info!("Expired api token was deleted"),
             }
         }
-        // app errors are wrapped in Anyhow::Error
-        _possible_app_error => match err.root_cause().downcast_ref::<AppError>() {
-            // TODO:consolidate all these expected-but-no-special-action errors to be handled by 1
-            // function. The actual messages should be specified at the error site, not here.
-            // OR in the error::write implementation. But not here
-            Some(AppError::MissingPipe) => eprint_nopipe_error(is_quiet),
-            Some(AppError::BookmarkMissing(bookmark)) => {
-                eprint_bookmark_missing_error(bookmark, is_quiet)
+        _possible_app_error => match err.downcast_ref::<AppError>() {
+            Some(AppError::Reportable(msg)) => eprint_error(msg, is_quiet),
+            _all_other_errors => {
+                eprint_unexpected_error(err, is_quiet);
             }
-            Some(AppError::InvalidBookmarkStringFormat) => eprint_error(
-                "Your clipboard doesn't seem to contain a valid bookmark",
-                is_quiet,
-            ),
-            Some(AppError::InvalidConfigFile(path)) => eprint_error(
-                &format!(
-                    "The cvcap config file \"{}\" is invalid and cannot be read",
-                    path
-                ),
-                is_quiet,
-            ),
-            _all_other_errors => eprint_unexpected_error(err, is_quiet),
         },
     }
     1
@@ -113,43 +84,6 @@ fn eprint_error(message: &str, is_quiet: bool) {
     let out = ColourOutput::new(StreamKind::Stderr);
     out.append("\nError: ", Style::Error)
         .append(message, Style::Normal)
-        .println()
-        .expect("problem styling error text");
-}
-
-#[inline(always)]
-// haven't so far found a way to get clap to do this
-fn eprint_nopipe_error(is_quiet: bool) {
-    if is_quiet {
-        return;
-    }
-
-    // this doesn't actually produce a useful usage message
-    // let mut cmd = Cli::command();
-    // eprintln!("{}", cmd.render_usage())
-    const USAGE_MSG: &str = r#"-s arg requires piped input, eg. `cat [filename] | cvcap add -s`'
-
-USAGE:
-    cvcap add --from stdin --choose-list
-
-For more information try --help"#;
-
-    let out = ColourOutput::new(StreamKind::Stderr);
-    out.append("error: ", Style::Error)
-        .append(USAGE_MSG, Style::Normal)
-        .println()
-        .expect("problem styling error text");
-}
-
-#[inline(always)]
-fn eprint_bookmark_missing_error(bookmark: &str, is_quiet: bool) {
-    if is_quiet {
-        return;
-    };
-    let msg = format!("You tried to add an item using bookmark '{}', but that bookmark is not in your cvcap config file", bookmark);
-    let out = ColourOutput::new(StreamKind::Stderr);
-    out.append("\nError: ", Style::Error)
-        .append(msg, Style::Normal)
         .println()
         .expect("problem styling error text");
 }
@@ -187,7 +121,7 @@ fn eprint_unexpected_error(err: Error, is_quiet: bool) {
     );
 
     let out = ColourOutput::new(StreamKind::Stderr);
-    out.append(format!("Error: {}", err), Style::Error)
+    out.append(format!("\nError: {}", err), Style::Error)
         .append(err_msg, Style::Normal)
         .println()
         .expect("problem styling error text");
