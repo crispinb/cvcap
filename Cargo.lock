@@ -399,7 +399,7 @@ dependencies = [
 
 [[package]]
 name = "cvapi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "log",
@@ -413,7 +413,7 @@ dependencies = [
 
 [[package]]
 name = "cvcap"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "assert_cmd",
