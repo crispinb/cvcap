@@ -95,6 +95,15 @@ impl Add {
             position: 1,
         };
 
+        let client = context.api_client()?;
+
+        if self.choose_list {
+            let Some(list) = interaction::user_select_list(&client)? else {
+            return Ok(RunType::Cancelled);
+        };
+            list_id = list.0;
+        }
+
         let (dest_label, dest_name) = if let Some(bookmark) = &self.bookmark {
             (" to bookmark ".to_string(), bookmark.clone())
         } else {
@@ -110,15 +119,6 @@ impl Add {
                 .println()
                 .expect("Problem printing colour output");
         };
-
-        let client = context.api_client()?;
-
-        if self.choose_list {
-            let Some(list) = interaction::user_select_list(&client)? else {
-            return Ok(RunType::Cancelled);
-        };
-            list_id = list.0;
-        }
 
         let add_task = || {
             client
