@@ -1,19 +1,24 @@
 /// Utility functions for common interactions
+use std::path::PathBuf;
+
 use anyhow::{anyhow, Result};
-use dialoguer::Select;
+use dialoguer::{Confirm, Select};
 use log::error;
 
 use crate::{
     colour_output::{ColourOutput, StreamKind, Style},
+    config::Config,
     progress_indicator::ProgressIndicator,
 };
 use cvapi::CheckvistClient;
 
 /// Present the user with a dialogue to select one from their lists
+/// msg is any additional message to print before presenting the pick list
 /// Returns Ok<Some<list_id, list_name>> on selection, or Ok<None>
 /// if the user cancels
-pub fn user_select_list(client: &CheckvistClient) -> Result<Option<(u32, String)>> {
+pub fn user_select_list(client: &CheckvistClient, msg: &str) -> Result<Option<(u32, String)>> {
     let lists = get_lists(client)?;
+    println!("{}", msg);
     Ok(select_list(lists))
 }
 
@@ -58,9 +63,33 @@ fn select_list(lists: Vec<(u32, String)>) -> Option<(u32, String)> {
         ColourOutput::new(StreamKind::Stdout)
             .append("You picked list '", Style::Normal)
             .append(&list.1, Style::ListName)
+            .append("'", Style::Normal)
             .println()
             .expect("Problem printing colour output");
 
         list
     })
+}
+
+pub fn offer_to_save_new_default_list(config: &Config, path: &PathBuf) -> Result<()> {
+    // TODO: confirmation question should follow standard list name colour scheme
+    // Don't think ColourOutput can do this, so would need to use term escapes.
+    if !Confirm::new()
+        .with_prompt(format!(
+            "Do you want to save '{}' as your new default list?",
+            &config.list_name
+        ))
+        .interact()?
+    {
+        println!("Not changing your default list");
+        return Ok(());
+    }
+    config.save(path)?;
+
+    ColourOutput::new(StreamKind::Stdout)
+        .append(config.list_name.clone(), Style::ListName)
+        .append(" is now your default list", Style::Normal)
+        .println()?;
+
+    Ok(())
 }

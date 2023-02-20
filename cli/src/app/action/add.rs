@@ -97,11 +97,20 @@ impl Add {
 
         let client = context.api_client()?;
 
+        let mut use_non_default_list = false;
+        // we now need a mutable config to potentially save to
+        let mut config = context.config.unwrap();
         if self.choose_list {
-            let Some(list) = interaction::user_select_list(&client)? else {
+            let Some(list) = interaction::user_select_list(&client, &format!( "Current default list: {}", config.list_name ))? else {
             return Ok(RunType::Cancelled);
         };
+            // potentially save if this isn't the currently configured default list
+            if list_id != list.0 {
+                use_non_default_list = true;
+            }
             list_id = list.0;
+            config.list_id = list.0;
+            config.list_name = list.1;
         }
 
         let (dest_label, dest_name) = if let Some(bookmark) = &self.bookmark {
@@ -130,11 +139,14 @@ impl Add {
 
         if context.allow_interaction {
             ProgressIndicator::new('.', Box::new(before_add_task), 250).run(add_task)?;
+            if use_non_default_list {
+                interaction::offer_to_save_new_default_list(&config, &context.config_file_path)?;
+            }
         } else {
             add_task()?;
         }
 
-        Ok(RunType::Completed("\nTask added".into()))
+        Ok(RunType::Completed("Task added".into()))
     }
 
     /// Get content from args, clipboard or std, depending on user-provided options

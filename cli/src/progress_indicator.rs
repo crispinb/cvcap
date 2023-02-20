@@ -55,6 +55,7 @@ impl ProgressIndicator<'_> {
         self.handle = Some(handle);
 
         let result = job();
+        println!();
 
         let error_message = String::from("Couldn't stop progress indicator thread");
         self.tx
