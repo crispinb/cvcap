@@ -14,6 +14,8 @@ use crate::{
     progress_indicator::ProgressIndicator,
 };
 
+type Result<T> = std::result::Result<T, AddBookmarkError>;
+
 #[derive(Debug, Args)]
 pub struct AddBookmark {
     /// The name to give to the bookmark
@@ -22,7 +24,28 @@ pub struct AddBookmark {
     name: String,
 }
 
-type Result<T> = std::result::Result<T, AddBookmarkError>;
+impl Action for AddBookmark {
+    fn run(self, context: Context) -> AnyhowResult<RunType> {
+        return match self.validate_user_responses(&context) {
+            Ok(validated) => {
+                let allow_interaction = context.allow_interaction;
+                let job = || validated.add_bookmark(context);
+                if allow_interaction {
+                    let p = ProgressIndicator::new(
+                        '.',
+                        Box::new(|| println!("\nAdding bookmark")),
+                        100,
+                    );
+                    p.run(job)
+                } else {
+                    job()
+                }
+            }
+            Err(AddBookmarkError::UserCancellation) => Ok(RunType::Cancelled),
+            Err(AddBookmarkError::Unhandled(err)) => Err(err),
+        };
+    }
+}
 
 // This isn't strictly an error type - eg. UserCancellation isn't
 // an error, so is converted to Result<Runtype> before return in
@@ -58,29 +81,6 @@ impl From<CheckvistError> for AddBookmarkError {
 impl From<std::io::Error> for AddBookmarkError {
     fn from(value: std::io::Error) -> Self {
         Self::Unhandled(value.into())
-    }
-}
-
-impl Action for AddBookmark {
-    fn run(self, context: Context) -> AnyhowResult<RunType> {
-        return match self.validate_user_responses(&context) {
-            Ok(validated) => {
-                let allow_interaction = context.allow_interaction;
-                let job = || validated.add_bookmark(context);
-                if allow_interaction {
-                    let p = ProgressIndicator::new(
-                        '.',
-                        Box::new(|| println!("\nAdding bookmark")),
-                        100,
-                    );
-                    p.run(job)
-                } else {
-                    job()
-                }
-            }
-            Err(AddBookmarkError::UserCancellation) => Ok(RunType::Cancelled),
-            Err(AddBookmarkError::Unhandled(err)) => Err(err),
-        };
     }
 }
 
@@ -136,10 +136,7 @@ impl AddBookmark {
             job()?;
         }
 
-        Ok(AddBookmarkValidated {
-            config,
-            bookmark
-        })
+        Ok(AddBookmarkValidated { config, bookmark })
     }
 
     fn ask_user_if_bookmark_should_be_replaced(
@@ -156,10 +153,9 @@ impl AddBookmark {
         };
         Ok(())
     }
-
 }
 
-// Validated data needed to add bookmark 
+// Validated data needed to add bookmark
 pub struct AddBookmarkValidated {
     bookmark: Bookmark,
     config: crate::config::Config,
@@ -167,9 +163,6 @@ pub struct AddBookmarkValidated {
 
 impl AddBookmarkValidated {
     /// Add the bookmark in self.bookmark to the config in self.config
-    /// self.bookmark: None is an error
-    /// self.config: None just indicates that the user cancelled
-    /// the config setup (see AddBookmarkError From impl)
     /// This method does no user interaction
     fn add_bookmark(mut self, context: Context) -> AnyhowResult<RunType> {
         self.config.add_bookmark(self.bookmark, true)?;
