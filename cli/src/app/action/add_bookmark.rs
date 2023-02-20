@@ -20,8 +20,6 @@ pub struct AddBookmark {
     /// The bookmark's Checkvist URL must already be on the system clipboard
     #[clap(name = "bookmark name")]
     name: String,
-    #[clap(skip)] // clap ignore otherwise we need to impl Bookmark::FromStr
-    bookmark: Option<Bookmark>,
 }
 
 type Result<T> = std::result::Result<T, AddBookmarkError>;
@@ -65,15 +63,15 @@ impl From<std::io::Error> for AddBookmarkError {
 
 impl Action for AddBookmark {
     fn run(self, context: Context) -> AnyhowResult<RunType> {
-        return match self.gather_user_responses(&context) {
-            Ok(response) => {
+        return match self.validate_user_responses(&context) {
+            Ok(validated) => {
                 let allow_interaction = context.allow_interaction;
-                let job = || response.add_bookmark(context);
+                let job = || validated.add_bookmark(context);
                 if allow_interaction {
                     let p = ProgressIndicator::new(
                         '.',
                         Box::new(|| println!("\nAdding bookmark")),
-                        200,
+                        100,
                     );
                     p.run(job)
                 } else {
@@ -90,7 +88,7 @@ impl AddBookmark {
     /// Get responses necessary to proceed with the add operation
     /// If context.allow_interactive is false, errors are returned if interactions
     /// would be needed for the add to proceed.
-    fn gather_user_responses(mut self, context: &Context) -> Result<AddBookmark> {
+    fn validate_user_responses(self, context: &Context) -> Result<AddBookmarkValidated> {
         let config = context.config.clone()?;
         let bookmark = Bookmark::from_clipboard(&self.name).with_context(|| {
             AppError::Reportable("The clipboard doesn't contain a valid bookmark".into())
@@ -138,8 +136,10 @@ impl AddBookmark {
             job()?;
         }
 
-        self.bookmark = Some(bookmark);
-        Ok(self)
+        Ok(AddBookmarkValidated {
+            config,
+            bookmark
+        })
     }
 
     fn ask_user_if_bookmark_should_be_replaced(
@@ -157,21 +157,23 @@ impl AddBookmark {
         Ok(())
     }
 
+}
+
+// Validated data needed to add bookmark 
+pub struct AddBookmarkValidated {
+    bookmark: Bookmark,
+    config: crate::config::Config,
+}
+
+impl AddBookmarkValidated {
     /// Add the bookmark in self.bookmark to the config in self.config
     /// self.bookmark: None is an error
     /// self.config: None just indicates that the user cancelled
     /// the config setup (see AddBookmarkError From impl)
     /// This method does no user interaction
-    fn add_bookmark(self, context: Context) -> AnyhowResult<RunType> {
-        let Ok(mut config) = context.config else {
-             return Ok(RunType::Cancelled);
-        };
-        let Some(bookmark) = self.bookmark else {
-            panic!("AddBookmark struct should have a bookmark");
-        };
-
-        config.add_bookmark(bookmark, true)?;
-        config.save(&context.config_file_path)?;
+    fn add_bookmark(mut self, context: Context) -> AnyhowResult<RunType> {
+        self.config.add_bookmark(self.bookmark, true)?;
+        self.config.save(&context.config_file_path)?;
 
         Ok(RunType::Completed("\nBookmark Added".into()))
     }

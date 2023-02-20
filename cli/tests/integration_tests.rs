@@ -326,7 +326,6 @@ struct TestConfig {
     mock_server: MockServer,
     logged_in: bool,
     pub keychain_service_name: String,
-    config_path: PathBuf,
 }
 
 // clear up test resources
@@ -399,7 +398,6 @@ async fn configure_command(
             mock_server,
             logged_in,
             keychain_service_name,
-            config_path,
         },
     )
 }
