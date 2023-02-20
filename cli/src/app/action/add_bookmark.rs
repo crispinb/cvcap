@@ -10,6 +10,7 @@ use super::{
     Action, RunType,
 };
 use crate::{
+    config, 
     app::{bookmark::Bookmark, Error as AppError},
     progress_indicator::ProgressIndicator,
 };
@@ -17,30 +18,17 @@ use crate::{
 type Result<T> = std::result::Result<T, AddBookmarkError>;
 
 #[derive(Debug, Args)]
-pub struct AddBookmark {
+pub struct AddBookmarkCommand {
     /// The name to give to the bookmark
     /// The bookmark's Checkvist URL must already be on the system clipboard
     #[clap(name = "bookmark name")]
     name: String,
 }
 
-impl Action for AddBookmark {
+impl Action for AddBookmarkCommand {
     fn run(self, context: Context) -> AnyhowResult<RunType> {
-        return match self.validate_user_responses(&context) {
-            Ok(validated) => {
-                let allow_interaction = context.allow_interaction;
-                let job = || validated.add_bookmark(context);
-                if allow_interaction {
-                    let p = ProgressIndicator::new(
-                        '.',
-                        Box::new(|| println!("\nAdding bookmark")),
-                        100,
-                    );
-                    p.run(job)
-                } else {
-                    job()
-                }
-            }
+        return match self.create_job(&context) {
+            Ok(job) => job.run(context), 
             Err(AddBookmarkError::UserCancellation) => Ok(RunType::Cancelled),
             Err(AddBookmarkError::Unhandled(err)) => Err(err),
         };
@@ -84,11 +72,11 @@ impl From<std::io::Error> for AddBookmarkError {
     }
 }
 
-impl AddBookmark {
+impl AddBookmarkCommand {
     /// Get responses necessary to proceed with the add operation
     /// If context.allow_interactive is false, errors are returned if interactions
     /// would be needed for the add to proceed.
-    fn validate_user_responses(self, context: &Context) -> Result<AddBookmarkValidated> {
+    fn create_job(self, context: &Context) -> Result<AddBookmarkJob> {
         let config = context.config.clone()?;
         let bookmark = Bookmark::from_clipboard(&self.name).with_context(|| {
             AppError::Reportable("The clipboard doesn't contain a valid bookmark".into())
@@ -136,7 +124,7 @@ impl AddBookmark {
             job()?;
         }
 
-        Ok(AddBookmarkValidated { config, bookmark })
+        Ok(AddBookmarkJob { config, bookmark })
     }
 
     fn ask_user_if_bookmark_should_be_replaced(
@@ -156,12 +144,26 @@ impl AddBookmark {
 }
 
 // Validated data needed to add bookmark
-pub struct AddBookmarkValidated {
+pub struct AddBookmarkJob {
     bookmark: Bookmark,
-    config: crate::config::Config,
+    config: config::Config,
 }
 
-impl AddBookmarkValidated {
+impl AddBookmarkJob {
+    fn run(self, context: Context) -> AnyhowResult<RunType>{
+let allow_interaction = context.allow_interaction;
+                let job = || self.add_bookmark(context);
+                if allow_interaction {
+                    let p = ProgressIndicator::new(
+                        '.',
+                        Box::new(|| println!("\nAdding bookmark")),
+                        100,
+                    );
+                    p.run(job)
+                } else {
+                    job()
+                }
+    }
     /// Add the bookmark in self.bookmark to the config in self.config
     /// This method does no user interaction
     fn add_bookmark(mut self, context: Context) -> AnyhowResult<RunType> {

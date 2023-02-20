@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 pub struct ProgressIndicator<'a> {
     tx: Option<Sender<()>>,
     handle: Option<JoinHandle<()>>,
-    do_before: Box<dyn FnMut() + 'a>,
+    do_before: Box<dyn FnOnce() + 'a>,
     progress_char: char,
     display_interval_ms: u64,
 }
@@ -15,7 +15,7 @@ pub struct ProgressIndicator<'a> {
 impl ProgressIndicator<'_> {
     pub fn new<'a>(
         progress_char: char,
-        do_before: Box<dyn FnMut() + 'a>,
+        do_before: Box<dyn FnOnce() + 'a>,
         interval: u64,
     ) -> ProgressIndicator<'a> {
         ProgressIndicator {

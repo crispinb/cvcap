@@ -33,7 +33,7 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Capture a task from commandline, clipboard, or stdin
-    Add(action::Add),
+    Add(action::AddTaskCommand),
     /// Check cvcap status: whether logged in and is configured with a default list and/or bookmarks
     #[clap(name = "status")]
     ShowStatus(action::ShowStatus),
@@ -42,14 +42,14 @@ pub enum Command {
     LogOut(action::LogOut),
     /// Adds a Checkvist bookmark from the clipboard
     #[clap(name = "add-bookmark")]
-    AddBookmark(action::AddBookmark),
+    AddBookmark(action::AddBookmarkCommand),
 }
 
 impl Command {
     // Create a default add command, with a content string and no options.
     // Can't  use std::default as we need the arg
     pub fn default(task_content: &str) -> Self {
-        Self::Add(action::Add::new(task_content))
+        Self::Add(action::AddTaskCommand::new(task_content))
     }
 
     /// Allow subcommands to tailor the context

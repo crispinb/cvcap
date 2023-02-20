@@ -9,7 +9,7 @@ mod interaction;
 
 use std::fmt;
 
-pub use action::{Action, Add, LogOut, RunType, ShowStatus};
+pub use action::{Action, AddTaskCommand, LogOut, RunType, ShowStatus};
 pub use cli::{Cli, Command};
 pub use config::Config;
 
