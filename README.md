@@ -27,6 +27,18 @@ This requires use of the `add` subcommand
 
    options can be combined
 
+#### Bookmarks
+* `cvcap add-bookmark [bookmark name]`
+
+   Adds a bookmark to enable adding tasks to Checkvist lists other than the default list.
+   A bookmark must already exist on the clipboard. This can be either the URL of a list 
+   (ie. copied from the browser url bar) or the URL of an item (the Checkvist `copy permalink` command
+    or `lc` shortcut). Adding a task with an item shortcut makes a child task.
+
+* `cvcap add [task] -b [bookmark name]`
+  
+  Adds the task to the location pointed to by the bookmark
+
 ## Installation
 * download a binary from [ Releases ](https://github.com/crispinb/cvcap/releases)
     
