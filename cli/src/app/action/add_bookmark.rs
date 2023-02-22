@@ -10,8 +10,8 @@ use super::{
     Action, RunType,
 };
 use crate::{
-    config, 
     app::{bookmark::Bookmark, Error as AppError},
+    config,
     progress_indicator::ProgressIndicator,
 };
 
@@ -28,7 +28,7 @@ pub struct AddBookmarkCommand {
 impl Action for AddBookmarkCommand {
     fn run(self, context: Context) -> AnyhowResult<RunType> {
         return match self.create_job(&context) {
-            Ok(job) => job.run(context), 
+            Ok(job) => job.run(context),
             Err(AddBookmarkError::UserCancellation) => Ok(RunType::Cancelled),
             Err(AddBookmarkError::Unhandled(err)) => Err(err),
         };
@@ -150,19 +150,13 @@ pub struct AddBookmarkJob {
 }
 
 impl AddBookmarkJob {
-    fn run(self, context: Context) -> AnyhowResult<RunType>{
-let allow_interaction = context.allow_interaction;
-                let job = || self.add_bookmark(context);
-                if allow_interaction {
-                    let p = ProgressIndicator::new(
-                        '.',
-                        Box::new(|| println!("\nAdding bookmark")),
-                        100,
-                    );
-                    p.run(job)
-                } else {
-                    job()
-                }
+    fn run(self, context: Context) -> AnyhowResult<RunType> {
+        if context.allow_interaction {
+            let p = ProgressIndicator::new('.', Box::new(|| println!("\nAdding bookmark")), 100);
+            p.run(|| self.add_bookmark(context))
+        } else {
+            self.add_bookmark(context)
+        }
     }
     /// Add the bookmark in self.bookmark to the config in self.config
     /// This method does no user interaction

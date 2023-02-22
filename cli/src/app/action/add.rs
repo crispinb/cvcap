@@ -78,7 +78,6 @@ impl AddTaskCommand {
     }
 
     fn create_job(self, context: &context::Context) -> Result<AddTaskJob> {
-        let content = self.get_task_content(context.allow_interaction)?;
         let client = context.api_client()?;
         let config = context.config.as_ref()?;
         let (list_id, location_name, parent_id, possible_new_default_list) = match &self.bookmark {
@@ -92,14 +91,14 @@ impl AddTaskCommand {
                     let Some(user_selected_list) = interaction::user_select_list(&client, &format!( "Current default list: {}", config.list_name ))? else {
                         return Err(AddTaskError::UserCancellation);
                     };
-                    dbg!(&config.list_id);
-                    dbg!(user_selected_list.0);
                     (user_selected_list.0, user_selected_list.1, None, config.list_id != user_selected_list.0)
                 } else {
                     (config.list_id, config.list_name.clone(), None, false)
                 }
             }
         };
+
+        let content = self.get_task_content(context.allow_interaction)?;
         let task = Task {
             id: None,
             parent_id,
@@ -117,14 +116,13 @@ impl AddTaskCommand {
     }
 
     /// Get content from args, clipboard or std, depending on user-provided options
-    fn get_task_content(&self, allow_interaction: bool) -> Result<String> {
+    /// Owns self to avoid cloning the content
+    fn get_task_content(self, allow_interaction: bool) -> Result<String> {
         match (self.from_clipboard, self.from_stdin) {
             (true, false) => self.get_content_from_clipboard(allow_interaction),
             (false, true) => self.get_content_from_stdin(),
             (false, false) => self
                 .task_content
-                .as_ref()
-                .cloned()
                 .ok_or_else(|| AddTaskError::Unhandled(anyhow!("Task content cannot be empty"))),
 
             (true, true) => panic!("Argument parsing failed"),
@@ -160,7 +158,7 @@ impl AddTaskCommand {
 }
 
 // check out this thread for raw vs validated data naming: https://elk.zone/fosstodon.org/@rauschma/109904332263316273
-// I've decided here on Command vs Job which suits the domain  
+// I've decided here on Command vs Job which suits the domain
 struct AddTaskJob {
     client: CheckvistClient,
     task: Task,
