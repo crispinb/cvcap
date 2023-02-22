@@ -202,7 +202,7 @@ impl Context {
             return Ok(None);
         };
 
-        let Some(selected_list) = interaction::user_select_list(client, "")? else {
+        let Some(selected_list) = interaction::user_select_list(client,ColourOutput::new( StreamKind::Stdout))? else {
             // user cancels
             return Ok(None);
         };

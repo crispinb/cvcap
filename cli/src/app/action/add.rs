@@ -88,7 +88,10 @@ impl AddTaskCommand {
             None => {
                 if self.choose_list {
                     assert!(context.allow_interaction);
-                    let Some(user_selected_list) = interaction::user_select_list(&client, &format!( "Current default list: {}", config.list_name ))? else {
+                    let msg =  ColourOutput::new(StreamKind::Stdout)
+                        .append("Current default list: ", Style::Normal)
+                        .append(&config.list_name, Style::ListName);
+                    let Some(user_selected_list) = interaction::user_select_list(&client, msg)? else {
                         return Err(AddTaskError::UserCancellation);
                     };
                     (user_selected_list.0, user_selected_list.1, None, config.list_id != user_selected_list.0)
