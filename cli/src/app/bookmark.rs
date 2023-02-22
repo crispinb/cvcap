@@ -83,7 +83,10 @@ mod test {
     #[serial]
     fn get_valid_bookmark_from_clipboard() {
         let cliptext = "https://checkvist.com/checklists/1/tasks/2".to_string();
-        let mut clip_ctx = ClipboardContext::new().unwrap();
+        let Ok(mut clip_ctx) = ClipboardContext::new() else {
+            eprintln!("Aborting test because this environment doesn't seem to have a clipboard we can access");
+            return ();
+        };
         clip_ctx.set_contents(cliptext).unwrap();
 
         let bookmark = Bookmark::from_clipboard("bm1").unwrap();
@@ -97,7 +100,10 @@ mod test {
     #[serial]
     fn get_from_invalid_clipboard_contents_errors() {
         let cliptext = "".to_string();
-        let mut clip_ctx = ClipboardContext::new().unwrap();
+        let Ok(mut clip_ctx) = ClipboardContext::new() else {
+            eprintln!("Aborting test because this environment doesn't seem to have a clipboard we can access");
+            return ();
+        };
         clip_ctx.set_contents(cliptext).unwrap();
 
         let _error = Bookmark::from_clipboard("bm1").expect_err("Expected an err");
