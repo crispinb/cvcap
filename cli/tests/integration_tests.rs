@@ -74,12 +74,13 @@ async fn status_reports_user_not_logged_in() {
         .success();
 }
 #[tokio::test]
-async fn status_reports_presence_of_bookmarks() {
+async fn status_reports_bookmark_count() {
     let (mut cmd, _testconfig) = configure_command(None, true, true).await;
 
     cmd.arg("status")
         .assert()
-        .stdout(predicate::str::contains("✅").count(2))
+        .stdout(predicate::str::contains("✅").count(1))
+        .stdout(predicates::str::contains("(2)"))
         .success();
 }
 
