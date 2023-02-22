@@ -16,6 +16,8 @@ jobs:
       # can remove the update when Rust 1.63 is in the default runner
       - name: Rust updates
         run: rustup update
+      - name: Add libsecrets
+        run: sudo apt-get install -y libsecret-1-0
       - uses: actions/checkout@v3
       - uses: Swatinem/rust-cache@v2
       - name: Run tests
