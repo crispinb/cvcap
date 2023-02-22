@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -24,6 +24,11 @@ impl Bookmark {
     pub fn rename(mut self, name: &str) -> Self {
         self.name = name.to_string();
         self
+    }
+}
+impl Display for Bookmark {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)
     }
 }
 

@@ -33,7 +33,8 @@ impl ShowStatus {
                 status_text.push('\n');
                 match &config.bookmarks {
                     Some(bookmarks) => {
-                        status_text.push_str(&format!("    - bookmarks \t\t✅ {:?}", bookmarks))
+                        let bookmark_display = bookmarks.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(", ");
+                        status_text.push_str(&format!("    - bookmarks ({}):\t\t{}", bookmarks.len(), bookmark_display))
                     }
                     None => status_text.push_str("    - bookmarks: \t\t❌"),
                 };
