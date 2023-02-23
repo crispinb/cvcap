@@ -40,7 +40,9 @@ This requires use of the `add` subcommand
   Adds the task to the location pointed to by the bookmark
 
 ## Installation
-* those familiar with the Rust tookchain will find it straightforward to install from git with `cargo install`. This is currently the best way to install on an ARM Mac, though the MacOS binary should run in a Rosetta terminal)
+Those familiar with the Rust tookchain will find it straightforward to install from git with `cargo install https://github.com/crispinb/cvcap/releases/tag/v0.1.5-alpha` or `cargo install --git https://github.com/crispinb/cvcap ` for the edgier version.
+
+Earlier versions provided binaries which I've stopped updating for now. Feel free to submit an issue if you'd like binaries available.
 
 ## Configuration and Environment
 
