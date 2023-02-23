@@ -40,10 +40,6 @@ This requires use of the `add` subcommand
   Adds the task to the location pointed to by the bookmark
 
 ## Installation
-* download a binary from [ Releases ](https://github.com/crispinb/cvcap/releases)
-    
-    Currently available for Linux, Windows, MacOS (Intel only)
-
 * those familiar with the Rust tookchain will find it straightforward to install from git with `cargo install`. This is currently the best way to install on an ARM Mac, though the MacOS binary should run in a Rosetta terminal)
 
 ## Configuration and Environment
