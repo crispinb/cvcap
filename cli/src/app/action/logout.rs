@@ -1,11 +1,21 @@
 use anyhow::Result;
-use clap::Args;
+use bpaf::{command, construct, parsers::ParseCommand, pure, Parser};
 
 use super::{Action, RunType};
-use crate::app::{context, creds};
+use crate::app::{action, cli::Command, context, creds};
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone)]
 pub struct LogOut;
+
+impl LogOut {
+    pub fn command() -> ParseCommand<Command> {
+        let logout_action = pure(action::LogOut);
+        let logout = construct!(Command::LogOut(logout_action))
+            .to_options()
+            .descr("Remove all login data for the logged in user");
+        command("logout", logout).help("Removes all login data for the logged in user")
+    }
+}
 
 impl Action for LogOut {
     fn run(self, context: context::Context) -> Result<RunType> {

@@ -3,13 +3,13 @@ pub mod config;
 pub mod context;
 pub mod creds;
 
-mod action;
-mod cli;
+pub mod action;
+pub mod cli;
 mod interaction;
 
 use std::fmt;
 
-pub use action::{Action, AddTaskCommand, LogOut, RunType, ShowStatus};
+pub use action::{Action, AddTask, LogOut, RunType, ShowStatus};
 pub use cli::{Cli, Command};
 pub use config::Config;
 

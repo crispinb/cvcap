@@ -100,7 +100,8 @@ async fn shows_must_login_message_when_token_refresh_fails() {
     let (mut cmd, test_config) =
         configure_command(Some(HttpResponse::Unauthorised), true, true).await;
 
-    cmd.arg("task to add")
+    cmd.arg("add")
+        .arg("task to add")
         .assert()
         .stderr(predicate::str::contains(
             "You have been logged out of the Checkvist API",

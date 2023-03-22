@@ -1,10 +1,10 @@
 use anyhow::Result;
-use clap::Args;
+use bpaf::{command, construct, parsers::ParseCommand, pure, Parser};
 
 use super::{Action, RunType};
-use crate::app::context;
+use crate::app::{cli::Command, context};
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone)]
 pub struct ShowStatus;
 
 impl Action for ShowStatus {
@@ -14,6 +14,14 @@ impl Action for ShowStatus {
 }
 
 impl ShowStatus {
+    pub fn command() -> ParseCommand<Command> {
+        let status_action = pure(ShowStatus);
+        let status = construct!(Command::ShowStatus(status_action))
+            .to_options()
+            .descr("Check whether cvcap is logged in to Checkvist, and has a default list and/or bookmark(s)");
+        command("status", status).help("Check cvcap status: whether logged in and has default list and/or bookmark")
+    }
+
     fn get_status(&self, context: context::Context) -> String {
         let mut status_text = String::from("\n    - logged in to Checkvist: \t");
         match &context.api_token {
@@ -33,8 +41,16 @@ impl ShowStatus {
                 status_text.push('\n');
                 match &config.bookmarks {
                     Some(bookmarks) => {
-                        let bookmark_display = bookmarks.iter().map(|b| b.to_string()).collect::<Vec<String>>().join(", ");
-                        status_text.push_str(&format!("    - bookmarks ({}):\t\t{}", bookmarks.len(), bookmark_display))
+                        let bookmark_display = bookmarks
+                            .iter()
+                            .map(|b| b.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", ");
+                        status_text.push_str(&format!(
+                            "    - bookmarks ({}):\t\t{}",
+                            bookmarks.len(),
+                            bookmark_display
+                        ))
                     }
                     None => status_text.push_str("    - bookmarks: \t\t❌"),
                 };

@@ -1,11 +1,12 @@
 use std::io::{self, Read};
 
 use anyhow::{anyhow, Context as ErrContext, Result as AnyhowResult};
-use clap::Args;
+use bpaf::positional;
+use bpaf::{command, construct, long, parsers::ParseCommand, Parser};
 use dialoguer::Confirm;
 
 use super::{Action, RunType};
-use crate::app::{context, interaction};
+use crate::app::{cli, context, interaction};
 use crate::clipboard;
 use crate::colour_output::{ColourOutput, StreamKind, Style};
 use crate::context::ConfigAbsentError;
@@ -14,48 +15,28 @@ use cvapi::{CheckvistClient, Task};
 
 type Result<T> = std::result::Result<T, AddTaskError>;
 
-#[derive(Debug, Args)]
-pub struct AddTaskCommand {
-    #[clap(
-        name = "task text",
-        required_unless_present = "from clipboard",
-        required_unless_present = "from stdin"
-    )]
-    task_content: Option<String>,
-    /// Choose a list to add a new task to (ie. other than your default list)
-    #[clap(
-        name = "choose list",
-        short = 'l',
-        long,
-        conflicts_with = "quiet",
-        conflicts_with = "bookmark"
-    )]
-    choose_list: bool,
-    /// Add a task from the clipboard instead of the command line
-    #[clap(
-        short = 'c',
-        long,
-        name = "from clipboard",
-        conflicts_with = "task text",
-        conflicts_with = "from stdin"
-    )]
-    from_clipboard: bool,
-    /// Add a task from stdin instead of the command line
-    #[clap(
-        name = "from stdin",
-        short = 's',
-        long,
-        conflicts_with = "task text",
-        conflicts_with = "from clipboard"
-    )]
-    from_stdin: bool,
-    /// Add task to custom location instead of top of default list
-    /// (bookmark must exist in config file)
-    #[clap(short = 'b', long = "bookmark", conflicts_with = "choose list")]
-    pub bookmark: Option<String>,
+#[derive(Clone, Debug)]
+enum ContentSource {
+    Stdin,
+    Clipboard,
+    Arg(String),
 }
 
-impl Action for AddTaskCommand {
+#[derive(Clone, Debug)]
+enum DestinationSource {
+    Config,
+    //TODO: how to make this muttually excusive with `-q`? A guard?
+    PromptUser,
+    Bookmark(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct AddTask {
+    content_source: ContentSource,
+    destination_source: DestinationSource,
+}
+
+impl Action for AddTask {
     fn run(self, context: context::Context) -> AnyhowResult<RunType> {
         match self.create_job(&context) {
             Ok(job) => job.run(context),
@@ -65,43 +46,84 @@ impl Action for AddTaskCommand {
     }
 }
 
-impl AddTaskCommand {
-    // Create a new add action with a content string and all options false
-    pub fn new(task_content: &str) -> Self {
-        Self {
-            task_content: Some(task_content.to_string()),
-            choose_list: false,
-            from_clipboard: false,
-            from_stdin: false,
-            bookmark: None,
-        }
+impl AddTask {
+    pub fn command() -> ParseCommand<cli::Command> {
+        let from_clipboard = long("clipboard")
+            .short('c')
+            .help("Add a task from the clipboard instead of the command line")
+            .req_flag(ContentSource::Clipboard);
+        let from_stdin = long("stdin")
+            .short('s')
+            .help("Add a task from stdin (ie. piped in) instead of the command line")
+            .req_flag(ContentSource::Stdin);
+        let content_arg = positional("TASK_CONTENT");
+        let from_content_arg = construct!(ContentSource::Arg(content_arg));
+        let content_source = construct!([from_clipboard, from_stdin, from_content_arg]);
+
+        let to_user_prompted = long("choose_list")
+            .short('l')
+            .help("Choose from all available Checkvist lists")
+            .req_flag(DestinationSource::PromptUser);
+            // .guard(|_| false, "thats no good!");
+
+        let bookmark_arg = long("bookmark")
+            .short('b')
+            .help("Add task to a bookmarked location")
+            .argument::<String>("BOOKMARK");
+        let to_bookmark = construct!(DestinationSource::Bookmark(bookmark_arg));
+        let destination_source =
+            construct!([to_user_prompted, to_bookmark]).fallback(DestinationSource::Config);
+
+        let add_task = construct!(AddTask {
+            // destination_source must precede content_source
+            // as latter has a positional
+            destination_source,
+            content_source,
+        });
+
+        let add_task_cli_command = construct!(cli::Command::Add(add_task))
+            .to_options()
+            .descr("Capture a task from commandline, clipboard, or stdin");
+
+        command("add", add_task_cli_command)
     }
 
     fn create_job(self, context: &context::Context) -> Result<AddTaskJob> {
         let client = context.api_client()?;
         let config = context.config.as_ref()?;
-        let (list_id, location_name, parent_id, possible_new_default_list) = match &self.bookmark {
-            Some(bookmark_name) => match config.bookmark(bookmark_name) {
-                Some(bookmark) => (bookmark.location.list_id, bookmark.name, bookmark.location.parent_task_id, false),
-                None => return Err(AddTaskError::Unhandled(anyhow!("You tried to add a task to the bookmark '{}', but no bookmark of that name was found", bookmark_name))),
-            },
-            None => {
-                if self.choose_list {
-                    assert!(context.allow_interaction);
-                    let msg =  ColourOutput::new(StreamKind::Stdout)
+        let (list_id, location_name, parent_id, possible_new_default_list) =
+            match self.destination_source {
+                DestinationSource::Config => {
+                    (config.list_id, config.list_name.clone(), None, false)
+                }
+                DestinationSource::PromptUser => {
+                    let msg = ColourOutput::new(StreamKind::Stdout)
                         .append("Current default list: ", Style::Normal)
                         .append(&config.list_name, Style::ListName);
                     let Some(user_selected_list) = interaction::user_select_list(&client, msg)? else {
                         return Err(AddTaskError::UserCancellation);
                     };
-                    (user_selected_list.0, user_selected_list.1, None, config.list_id != user_selected_list.0)
-                } else {
-                    (config.list_id, config.list_name.clone(), None, false)
+                    (
+                        user_selected_list.0,
+                        user_selected_list.1,
+                        None,
+                        config.list_id != user_selected_list.0,
+                    )
                 }
-            }
-        };
+                DestinationSource::Bookmark(ref bookmark_name) => {
+                    match config.bookmark(bookmark_name) {
+                Some(bookmark) => (bookmark.location.list_id, bookmark.name, bookmark.location.parent_task_id, false),
+                None => return Err(AddTaskError::Unhandled(anyhow!("You tried to add a task to the bookmark '{}', but no bookmark of that name was found", bookmark_name))),
+                            }
+                }
+            };
 
-        let content = self.get_task_content(context.allow_interaction)?;
+        let content = match self.content_source {
+            ContentSource::Arg(content) => Ok(content),
+            ContentSource::Stdin => self.get_content_from_stdin(),
+            ContentSource::Clipboard => self.get_content_from_clipboard(context.allow_interaction),
+        }?;
+
         let task = Task {
             id: None,
             parent_id,
@@ -116,20 +138,6 @@ impl AddTaskCommand {
             location_name,
             possible_new_default_list,
         })
-    }
-
-    /// Get content from args, clipboard or std, depending on user-provided options
-    /// Owns self to avoid cloning the content
-    fn get_task_content(self, allow_interaction: bool) -> Result<String> {
-        match (self.from_clipboard, self.from_stdin) {
-            (true, false) => self.get_content_from_clipboard(allow_interaction),
-            (false, true) => self.get_content_from_stdin(),
-            (false, false) => self
-                .task_content
-                .ok_or_else(|| AddTaskError::Unhandled(anyhow!("Task content cannot be empty"))),
-
-            (true, true) => panic!("Argument parsing failed"),
-        }
     }
 
     fn get_content_from_stdin(&self) -> Result<String> {
@@ -208,8 +216,6 @@ impl AddTaskJob {
 
         Ok(self.possible_new_default_list)
     }
-
-    // fn add_task_with_interaction_if_allowed(self, context) ->AnyhowResult<>
 
     fn user_message(&self) -> ColourOutput {
         ColourOutput::new(StreamKind::Stdout)

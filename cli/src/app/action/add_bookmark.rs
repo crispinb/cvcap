@@ -1,7 +1,7 @@
 //! Adds a bookmark, honouring -q by returning errors where interactions are required.
 // NB: I'd like to find a better/more-principled means of handling interactions/-q
 use anyhow::{anyhow, Context as AnyhowContext, Result as AnyhowResult};
-use clap::Args;
+use bpaf::{command, construct, positional, params::ParseCommand, Parser};
 use cvapi::CheckvistError;
 use dialoguer::Confirm;
 
@@ -10,22 +10,31 @@ use super::{
     Action, RunType,
 };
 use crate::{
-    app::{bookmark::Bookmark, Error as AppError},
+    app::{bookmark::Bookmark, cli::Command, Error as AppError},
     config,
     progress_indicator::ProgressIndicator,
 };
 
 type Result<T> = std::result::Result<T, AddBookmarkError>;
 
-#[derive(Debug, Args)]
-pub struct AddBookmarkCommand {
-    /// The name to give to the bookmark
-    /// The bookmark's Checkvist URL must already be on the system clipboard
-    #[clap(name = "bookmark name")]
-    name: String,
+#[derive(Debug, Clone)]
+pub struct AddBookmark {
+    pub name: String,
 }
 
-impl Action for AddBookmarkCommand {
+impl AddBookmark {
+    pub fn command() -> ParseCommand<Command> {
+        let name = positional("BOOKMARK_NAME")
+            .help("The name to give to the bookmark\nThe bookmark's Checkvist URL must already be on the system clipboard");
+        let add_bookmark_command = construct!(AddBookmark { name });
+        let add_bookmark = construct!(Command::AddBookmark(add_bookmark_command))
+            .to_options()
+            .descr("Create bookmark, for adding tasks to lists other than the default list");
+        command("add-bookmark", add_bookmark).help("Adds a Checkvist bookmark from the clipboard")
+    }
+}
+
+impl Action for AddBookmark {
     fn run(self, context: Context) -> AnyhowResult<RunType> {
         return match self.create_job(&context) {
             Ok(job) => job.run(context),
@@ -72,7 +81,7 @@ impl From<std::io::Error> for AddBookmarkError {
     }
 }
 
-impl AddBookmarkCommand {
+impl AddBookmark {
     /// Get responses necessary to proceed with the add operation
     /// If context.allow_interactive is false, errors are returned if interactions
     /// would be needed for the add to proceed.

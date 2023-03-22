@@ -1,10 +1,10 @@
 mod add;
 mod add_bookmark;
 mod logout;
-mod show_status;
+pub mod show_status;
 
-pub use self::add::AddTaskCommand;
-pub use self::add_bookmark::AddBookmarkCommand;
+pub use self::add::AddTask;
+pub use self::add_bookmark::AddBookmark;
 pub use self::logout::LogOut;
 pub use self::show_status::ShowStatus;
 

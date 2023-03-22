@@ -29,6 +29,7 @@ pub struct Context {
     /// config Result::Err indicates any reason for not having a valid config
     pub config: Result<Config, ConfigAbsentError>,
     pub config_file_path: PathBuf,
+    // TODO: this may change after bpaf migration
     // this becase I haven't found a way to get access to higher level Command args from a
     // subcommand. see https://github.com/crispinb/cvcap/issues/26
     pub allow_interaction: bool,
