@@ -57,7 +57,7 @@ impl Cli {
 
         let build_show_usage = || {
             let show_usage = pure(Command::ShowUsage);
-            let s = construct!(show_usage).to_options();
+            let s = construct!(show_usage).hide().to_options();
             command("help", s)
         };
 
@@ -107,7 +107,7 @@ impl action::Action for Command {
             Command::ShowStatus(cmd) => cmd.run(context),
             Command::LogOut(cmd) => cmd.run(context),
             Command::AddBookmark(cmd) => cmd.run(context),
-            // TODO: get bpaf's usage message 
+            // TODO: get bpaf's usage message
             Command::ShowUsage => Ok(crate::RunType::Completed("USAGE MESSAGE TBD".into())),
         }
     }
