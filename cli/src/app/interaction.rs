@@ -16,7 +16,10 @@ use cvapi::CheckvistClient;
 /// msg is any additional message to print before presenting the pick list
 /// Returns Ok<Some<list_id, list_name>> on selection, or Ok<None>
 /// if the user cancels
-pub fn user_select_list(client: &CheckvistClient, msg: ColourOutput) -> Result<Option<(u32, String)>> {
+pub fn user_select_list(
+    client: &CheckvistClient,
+    msg: ColourOutput,
+) -> Result<Option<(u32, String)>> {
     let lists = get_lists(client)?;
     msg.println()?;
     Ok(select_list(lists))

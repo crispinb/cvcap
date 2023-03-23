@@ -28,13 +28,21 @@ fn main() {
         Err(e) => std::process::exit(handle_error(e, allow_interaction, "")),
     };
 
-    let log_level = if cli.interactivity_level == cli::InteractivityLevel::Verbose { "DEBUG" } else { "OFF" };
+    let log_level = if cli.interactivity_level == cli::InteractivityLevel::Verbose {
+        "DEBUG"
+    } else {
+        "OFF"
+    };
     env_logger::Builder::from_env(Env::default().default_filter_or(log_level)).init();
 
     match subcommand.run(context.clone()) {
         Err(err) => {
             error!("Fatal error. Cause: {:?}", err.root_cause());
-            std::process::exit(handle_error(err, allow_interaction, &context.keychain_service_name));
+            std::process::exit(handle_error(
+                err,
+                allow_interaction,
+                &context.keychain_service_name,
+            ));
         }
         Ok(RunType::Completed(msg)) => {
             if allow_interaction {

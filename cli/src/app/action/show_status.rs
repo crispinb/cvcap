@@ -19,7 +19,8 @@ impl ShowStatus {
         let status = construct!(Command::ShowStatus(status_action))
             .to_options()
             .descr("Check whether cvcap is logged in to Checkvist, and has a default list and/or bookmark(s)");
-        command("status", status).help("Check cvcap status: whether logged in and has default list and/or bookmark")
+        command("status", status)
+            .help("Check cvcap status: whether logged in and has default list and/or bookmark")
     }
 
     fn get_status(&self, context: context::Context) -> String {

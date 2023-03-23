@@ -1,7 +1,7 @@
 //! Adds a bookmark, honouring -q by returning errors where interactions are required.
 // NB: I'd like to find a better/more-principled means of handling interactions/-q
 use anyhow::{anyhow, Context as AnyhowContext, Result as AnyhowResult};
-use bpaf::{command, construct, positional, params::ParseCommand, Parser};
+use bpaf::{command, construct, params::ParseCommand, positional, Parser};
 use cvapi::CheckvistError;
 use dialoguer::Confirm;
 
