@@ -1,7 +1,5 @@
 use anyhow::Result;
-// TODO: narrow
-use bpaf::*;
-// use bpaf::{long, short, command, construct, parsers};
+use bpaf::{batteries::get_usage, command, construct, long, pure, OptionParser, Parser};
 
 use super::action;
 use super::context::Context;
@@ -11,7 +9,7 @@ const BANNER: &str = r"
   _   _   _   _   _  
  / \ / \ / \ / \ / \ 
 ( c | v | c | a | p )
- \_/ \_/ \_/ \_/ \_/ 
+  \_/ \_/ \_/ \_/ \_/ 
                               
 A minimal cli capture tool for Checkvist (https://checkvist.com)
 ";
@@ -44,7 +42,7 @@ pub enum Command {
 }
 
 impl Cli {
-    pub fn parse() -> Self {
+    fn parser() -> OptionParser<Cli> {
         let verbose = long("verbose")
             .short('v')
             .help("Enable verbose logging. In case of trouble")
@@ -55,11 +53,9 @@ impl Cli {
             .req_flag(InteractivityLevel::Silent);
         let interactivity_level = construct!([verbose, quiet]).fallback(InteractivityLevel::Normal);
 
-        let build_show_usage = || {
-            let show_usage = pure(Command::ShowUsage);
-            let s = construct!(show_usage).hide().to_options();
-            command("help", s)
-        };
+        let show_usage = pure(Command::ShowUsage);
+        let s = construct!(show_usage).to_options();
+        let show_usage = command("help", s).hide();
 
         let add_task_command = action::AddTask::command();
         let logout_command = action::LogOut::command();
@@ -67,23 +63,25 @@ impl Cli {
         let add_bookmark_command = action::AddBookmark::command();
 
         let subcommand = construct!([
-            logout_command,
-            status_command,
-            add_bookmark_command,
             add_task_command,
-            build_show_usage(),
+            add_bookmark_command,
+            status_command,
+            logout_command,
+            show_usage,
         ])
         .fallback(Command::ShowUsage);
 
-        let cli = construct!(Cli {
+        construct!(Cli {
             interactivity_level,
             subcommand,
         })
         .to_options()
         .descr(BANNER)
-        .version(VERSION);
+        .version(VERSION)
+    }
 
-        cli.run()
+    pub fn parse() -> Self {
+        Self::parser().run()
     }
 }
 
@@ -107,8 +105,7 @@ impl action::Action for Command {
             Command::ShowStatus(cmd) => cmd.run(context),
             Command::LogOut(cmd) => cmd.run(context),
             Command::AddBookmark(cmd) => cmd.run(context),
-            // TODO: get bpaf's usage message
-            Command::ShowUsage => Ok(crate::RunType::Completed("USAGE MESSAGE TBD".into())),
+            Command::ShowUsage => Ok(action::RunType::Completed(get_usage(Cli::parser()))),
         }
     }
 }

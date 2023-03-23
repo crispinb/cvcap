@@ -28,10 +28,10 @@ use cvcap::{
 
 #[tokio::test]
 async fn run_without_args_shows_help() {
-    let (mut cmd, _test_config) = configure_command(None, false, true).await;
+    let (mut cmd, _test_config) = configure_command(None, true, true).await;
     cmd.assert()
-        .stderr(predicate::str::contains("USAGE:"))
-        .failure();
+        .stdout(predicate::str::contains("Usage:"))
+        .success();
 }
 
 #[tokio::test]

@@ -1,8 +1,7 @@
 use std::io::{self, Read};
 
 use anyhow::{anyhow, Context as ErrContext, Result as AnyhowResult};
-use bpaf::positional;
-use bpaf::{command, construct, long, parsers::ParseCommand, Parser};
+use bpaf::{command, positional, construct, long, parsers::ParseCommand, Parser};
 use dialoguer::Confirm;
 
 use super::{Action, RunType};
@@ -64,7 +63,6 @@ impl AddTask {
             .short('l')
             .help("Choose from all available Checkvist lists")
             .req_flag(DestinationSource::PromptUser);
-        // .guard(|_| false, "thats no good!");
 
         let bookmark_arg = long("bookmark")
             .short('b')
@@ -113,8 +111,8 @@ impl AddTask {
                 DestinationSource::Bookmark(ref bookmark_name) => {
                     match config.bookmark(bookmark_name) {
                 Some(bookmark) => (bookmark.location.list_id, bookmark.name, bookmark.location.parent_task_id, false),
-                None => return Err(AddTaskError::Unhandled(anyhow!("You tried to add a task to the bookmark '{}', but no bookmark of that name was found", bookmark_name))),
-                            }
+                None => return Err(AddTaskError::Unhandled(anyhow!(
+                            "You tried to add a task to the bookmark '{}', but no bookmark of that name was found", bookmark_name))), }
                 }
             };
 
