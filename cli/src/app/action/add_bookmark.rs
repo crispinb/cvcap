@@ -36,11 +36,11 @@ impl AddBookmark {
 
 impl Action for AddBookmark {
     fn run(self, context: Context) -> AnyhowResult<RunType> {
-        return match self.create_job(&context) {
+        match self.create_job(&context) {
             Ok(job) => job.run(context),
             Err(AddBookmarkError::UserCancellation) => Ok(RunType::Cancelled),
             Err(AddBookmarkError::Unhandled(err)) => Err(err),
-        };
+        }
     }
 }
 

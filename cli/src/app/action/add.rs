@@ -1,7 +1,7 @@
 use std::io::{self, Read};
 
 use anyhow::{anyhow, Context as ErrContext, Result as AnyhowResult};
-use bpaf::{command, positional, construct, long, parsers::ParseCommand, Parser};
+use bpaf::{command, construct, long, parsers::ParseCommand, positional, Parser};
 use dialoguer::Confirm;
 
 use super::{Action, RunType};
@@ -24,7 +24,6 @@ enum ContentSource {
 #[derive(Clone, Debug)]
 enum DestinationSource {
     Config,
-    //TODO: how to make this muttually excusive with `-q`? A guard?
     PromptUser,
     Bookmark(String),
 }
@@ -46,6 +45,13 @@ impl Action for AddTask {
 }
 
 impl AddTask {
+    pub fn from_string(task_content: String) -> AddTask {
+        AddTask {
+            content_source: ContentSource::Arg(task_content),
+            destination_source: DestinationSource::Config,
+        }
+    }
+
     pub fn command() -> ParseCommand<cli::Command> {
         let from_clipboard = long("clipboard")
             .short('c')
@@ -84,6 +90,13 @@ impl AddTask {
             .descr("Capture a task from commandline, clipboard, or stdin");
 
         command("add", add_task_cli_command)
+    }
+
+    pub fn prompts_user(&self) -> bool {
+        match self.destination_source {
+            DestinationSource::PromptUser => true,
+            _ => false,
+        }
     }
 
     fn create_job(self, context: &context::Context) -> Result<AddTaskJob> {

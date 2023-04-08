@@ -1,8 +1,10 @@
-use anyhow::Result;
-use bpaf::{batteries::get_usage, command, construct, long, pure, OptionParser, Parser};
+use anyhow::{anyhow, Result};
+use bpaf::{
+    batteries::get_usage, command, construct, long, positional, pure, OptionParser, Parser,
+};
 
-use super::action;
 use super::context::Context;
+use super::{action, AddTask};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const BANNER: &str = r"                           
@@ -34,6 +36,7 @@ pub enum InteractivityLevel {
 
 #[derive(Debug, Clone)]
 pub enum Command {
+    AddToDefaultList(String),
     Add(action::AddTask),
     ShowStatus(action::ShowStatus),
     LogOut(action::LogOut),
@@ -43,6 +46,12 @@ pub enum Command {
 
 impl Cli {
     fn parser() -> OptionParser<Cli> {
+        let add_to_default_list = positional::<String>("TASK_CONTENT")
+            .help("Quickly adds a task to the default list")
+            .map(|s| AddTask::from_string(s));
+        // convert to a Command::Add
+        let add_to_default_list_parser = construct!(Command::Add(add_to_default_list));
+
         let verbose = long("verbose")
             .short('v')
             .help("Enable verbose logging. In case of trouble")
@@ -68,6 +77,7 @@ impl Cli {
             status_command,
             logout_command,
             show_usage,
+            add_to_default_list_parser,
         ])
         .fallback(Command::ShowUsage);
 
@@ -75,6 +85,10 @@ impl Cli {
             interactivity_level,
             subcommand,
         })
+        .guard(
+            Self::reject_q_and_l_flags,
+            "`-q` and `-l` cannot be used together",
+        )
         .to_options()
         .descr(BANNER)
         .version(VERSION)
@@ -82,6 +96,16 @@ impl Cli {
 
     pub fn parse() -> Self {
         Self::parser().run()
+    }
+
+    fn reject_q_and_l_flags(cli: &Cli) -> bool {
+        match &cli.subcommand {
+            Command::Add(add_action) => {
+                !(add_action.prompts_user()
+                    && (cli.interactivity_level == InteractivityLevel::Silent))
+            }
+            _ => true,
+        }
     }
 }
 
@@ -93,6 +117,7 @@ impl Command {
             Command::ShowStatus(_) => Context::new(false),
             Command::LogOut(_) => Context::new(false),
             Command::AddBookmark(_) => Context::new(allow_interaction),
+            Command::AddToDefaultList(_) => Context::new(allow_interaction),
             Command::ShowUsage => Context::new(allow_interaction),
         }
     }
@@ -106,6 +131,9 @@ impl action::Action for Command {
             Command::LogOut(cmd) => cmd.run(context),
             Command::AddBookmark(cmd) => cmd.run(context),
             Command::ShowUsage => Ok(action::RunType::Completed(get_usage(Cli::parser()))),
+            Command::AddToDefaultList(_) => {
+                Err(anyhow!("Add to default list command parsin failed"))
+            }
         }
     }
 }
