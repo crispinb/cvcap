@@ -12,7 +12,7 @@ url = "2.2.2"
 ureq = {version = "2.4.0", features = ["json"]}
 serde = {version = "1.0.137",features=["derive"]} 
 serde_json = "1.0.81"
-bpaf = {version="0.7.9", features=["bright-color", "batteries"]}
+bpaf = {version="^0.7.9", features=["bright-color", "batteries"]}
 directories = "4.0.1" 
 toml = "0.5.9"
 env_logger = "0.9.0" 
