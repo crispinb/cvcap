@@ -34,8 +34,11 @@ pub enum InteractivityLevel {
     Verbose,
 }
 
+// how is this for typing compared to within the kernel? Actually this doesn't seem so bad at all.
+// rEally 
 #[derive(Debug, Clone)]
 pub enum Command {
+    // AddToDefaultList is always converted to Add
     AddToDefaultList(String),
     Add(action::AddTask),
     ShowStatus(action::ShowStatus),
@@ -117,8 +120,9 @@ impl Command {
             Command::ShowStatus(_) => Context::new(false),
             Command::LogOut(_) => Context::new(false),
             Command::AddBookmark(_) => Context::new(allow_interaction),
-            Command::AddToDefaultList(_) => Context::new(allow_interaction),
             Command::ShowUsage => Context::new(allow_interaction),
+            // no arm for AddToDefaultList(_) which is always converted to an Add
+           _ => Err(anyhow!("Attempt to context for an unrecognised command")),
         }
     }
 }
@@ -131,9 +135,8 @@ impl action::Action for Command {
             Command::LogOut(cmd) => cmd.run(context),
             Command::AddBookmark(cmd) => cmd.run(context),
             Command::ShowUsage => Ok(action::RunType::Completed(get_usage(Cli::parser()))),
-            Command::AddToDefaultList(_) => {
-                Err(anyhow!("Add to default list command parsin failed"))
-            }
+            // no arm for AddToDefaultList(_) which is always converted to an Add
+           _ => Err(anyhow!("Attempt to run an unrecognised command")),
         }
     }
 }
