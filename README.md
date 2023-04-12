@@ -54,15 +54,12 @@ The credential ID (however that is defined on the platform' is 'cvcap-api-token'
 
 
 ## Future plans
-This is an intentionally simple tool to quickly capture text tasks to Checkvist. It will likely remain unpolished but serviceable. A few additional features I expect to add are:
+This is an intentionally simple tool to quickly capture text tasks to Checkvist. It will likely remain unpolished but serviceable. A few additional features I may add are:
 * File attachments
-* simplify the UI eg. remove the 'add' subcommand 
+* notes
 
-### More speculative possibilities:
-* offline usage
-* adding non-text MIME types from clipboard
-* richer Checkvist content (notes, due dates, priorities) 
-* add task to somewhere other than the top of the list
+I'm most interested though in using `cvcap` as inspiration for a more general-purpose capture tool, ie. a rules-driven interface to flexibly capture to a variety of sinks: checkvist, logseq, notion, etc.
+
 
 ## Note on cvcap / Checkvist (non-)relationship
 This is a third party app using Checkvist's public API. This repo has no affiliation with Checkvist (apart from recommending it heartily)
