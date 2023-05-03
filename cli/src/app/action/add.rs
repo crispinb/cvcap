@@ -5,12 +5,16 @@ use bpaf::{command, construct, long, parsers::ParseCommand, positional, Parser};
 use dialoguer::Confirm;
 
 use super::{Action, RunType};
-use crate::app::{cli, context, interaction};
+use crate::app::{
+    self,
+    cli,
+    context::{self, ConfigAbsentError},
+    interaction,
+};
 use crate::clipboard;
 use crate::colour_output::{ColourOutput, StreamKind, Style};
-use crate::context::ConfigAbsentError;
 use crate::progress_indicator::ProgressIndicator;
-use cvapi::{CheckvistClient, Task};
+use cvapi::{CheckvistClient, Task };
 
 type Result<T> = std::result::Result<T, AddTaskError>;
 
@@ -38,7 +42,8 @@ impl Action for AddTask {
     fn run(self, context: context::Context) -> AnyhowResult<RunType> {
         match self.create_job(&context) {
             Ok(job) => job.run(context),
-            Err(AddTaskError::UserCancellation) => Ok(RunType::Cancelled),
+            Err(AddTaskError::UserCancellation)  => Ok(RunType::Cancelled),
+            Err(AddTaskError::BookmarkNotFound(name)) => Err(app::Error::Reportable(format!("No bookmark named '{}' was found", name)).into()),
             Err(AddTaskError::Unhandled(e)) => Err(e),
         }
     }
@@ -124,8 +129,7 @@ impl AddTask {
                 DestinationSource::Bookmark(ref bookmark_name) => {
                     match config.bookmark(bookmark_name) {
                 Some(bookmark) => (bookmark.location.list_id, bookmark.name, bookmark.location.parent_task_id, false),
-                None => return Err(AddTaskError::Unhandled(anyhow!(
-                            "You tried to add a task to the bookmark '{}', but no bookmark of that name was found", bookmark_name))), }
+                None => return Err(AddTaskError::BookmarkNotFound(bookmark_name.into())), }
                 }
             };
 
@@ -239,6 +243,7 @@ impl AddTaskJob {
 #[derive(Debug)]
 enum AddTaskError {
     UserCancellation,
+    BookmarkNotFound(String),
     Unhandled(anyhow::Error),
 }
 
@@ -269,6 +274,7 @@ impl std::fmt::Display for AddTaskError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AddTaskError::UserCancellation => write!(f, "User cancelled add task operation"),
+            AddTaskError::BookmarkNotFound(name) => write!(f, "No bookmark named '{}' exists", name),
             AddTaskError::Unhandled(e) => write!(f, "{}", e),
         }
     }
