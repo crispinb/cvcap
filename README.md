@@ -1,3 +1,6 @@
+*Note* I'm no longer programming so this repo is essentially abandoned. I'll leave it here in case it's of any use to anyone. I'd also consider transfering the repo if anyone would like to take it on.
+
+----
 # cvcap 
 > A minimal commandline capture tool for [Checkvist](https://checkvist.com)
 
